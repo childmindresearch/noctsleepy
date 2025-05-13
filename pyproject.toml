@@ -1,5 +1,5 @@
 [project]
-name = "app-name"
+name = "wristpy_post_process"
 version = "0.0.1"
 description = "This package provides a set of pipeline and utilities to compute key metrics about sleep from already processed wrist-worn actigraphy data."
 authors = [
