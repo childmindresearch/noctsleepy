@@ -34,18 +34,6 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
             )
         )
 
-    return select_data(processed_data)
-
-
-def select_data(processed_data: pl.DataFrame) -> pl.DataFrame:
-    """Select relevant columns from the DataFrame.
-
-    Args:
-        processed_data: The DataFrame to select columns from.
-
-    Returns:
-        A DataFrame with only the relevant columns.
-    """
     return processed_data.select(
         [
             "time",
