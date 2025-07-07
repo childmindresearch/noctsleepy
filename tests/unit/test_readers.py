@@ -27,3 +27,9 @@ def test_file_not_found() -> None:
 
     with pytest.raises(FileNotFoundError):
         read_processed_data(non_existent_file)
+
+
+def test_unsupported_file_format(sample_txt_data: pathlib.Path) -> None:
+    """Test reading a file with an unsupported format raises ValueError."""
+    with pytest.raises(ValueError):
+        read_processed_data(sample_txt_data)
