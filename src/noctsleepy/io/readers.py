@@ -1,4 +1,4 @@
-"""This module contains the reader function to load processed actigraphy data."""
+"""This module contains the functionality to load processed actigraphy data."""
 
 import pathlib
 
