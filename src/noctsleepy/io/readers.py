@@ -35,10 +35,5 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
         )
 
     return processed_data.select(
-        [
-            "time",
-            "sleep_status",
-            "sib_periods",
-            "spt_periods",
-        ]
+        ["time", "sleep_status", "sib_periods", "spt_periods", "nonwear_status"]
     )

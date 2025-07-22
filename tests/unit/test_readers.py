@@ -18,6 +18,7 @@ def test_read_processed_data_csv(sample_csv_data: pathlib.Path) -> None:
         "sleep_status",
         "sib_periods",
         "spt_periods",
+        "nonwear_status",
     }
 
 
