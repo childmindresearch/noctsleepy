@@ -17,7 +17,9 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
 
     Raises:
         FileNotFoundError: If the file does not exist.
-        ValueError: If the file format is not supported.
+        ValueError:
+            If the file format is not supported.
+            If required columns are missing in the data.
     """
     if not filename.exists():
         raise FileNotFoundError(f"The file {filename} does not exist.")
@@ -34,6 +36,20 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
             )
         )
 
-    return processed_data.select(
-        ["time", "sleep_status", "sib_periods", "spt_periods", "nonwear_status"]
-    )
+    required_columns = [
+        "time",
+        "sleep_status",
+        "sib_periods",
+        "spt_periods",
+        "nonwear_status",
+    ]
+    missing_columns = [
+        col for col in required_columns if col not in processed_data.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns in the data: {', '.join(missing_columns)}"
+        )
+
+    return processed_data.select(required_columns)
