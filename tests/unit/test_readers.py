@@ -5,12 +5,12 @@ import pathlib
 import polars as pl
 import pytest
 
-from noctsleepy.io.readers import read_processed_data
+from noctsleepy.io.readers import read_wristpy_data
 
 
 def test_read_processed_data_csv(sample_csv_data: pathlib.Path) -> None:
     """Test reading processed data from a CSV file."""
-    csv_data = read_processed_data(sample_csv_data)
+    csv_data = read_wristpy_data(sample_csv_data)
 
     assert isinstance(csv_data, pl.DataFrame)
     assert set(csv_data.columns) == {
@@ -27,13 +27,13 @@ def test_file_not_found() -> None:
     non_existent_file = pathlib.Path("non_existent_file.csv")
 
     with pytest.raises(FileNotFoundError):
-        read_processed_data(non_existent_file)
+        read_wristpy_data(non_existent_file)
 
 
 def test_unsupported_file_format(sample_txt_data: pathlib.Path) -> None:
     """Test reading a file with an unsupported format raises ValueError."""
     with pytest.raises(ValueError, match="Unsupported file format: .txt"):
-        read_processed_data(sample_txt_data)
+        read_wristpy_data(sample_txt_data)
 
 
 def test_missing_required_columns(sample_incomplete_data: pathlib.Path) -> None:
@@ -42,4 +42,4 @@ def test_missing_required_columns(sample_incomplete_data: pathlib.Path) -> None:
         ValueError,
         match="Missing required columns in the data:",
     ):
-        read_processed_data(sample_incomplete_data)
+        read_wristpy_data(sample_incomplete_data)

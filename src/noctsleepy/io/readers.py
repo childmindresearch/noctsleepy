@@ -5,8 +5,11 @@ import pathlib
 import polars as pl
 
 
-def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
+def read_wristpy_data(filename: pathlib.Path) -> pl.DataFrame:
     """Read processed actigraphy data from either csv or parquet files.
+
+    Primarily, data must be saved in a format that agrees with the
+    wristpy processing toolbox.
 
     Args:
         filename: The path to the file.
@@ -24,10 +27,26 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
     if not filename.exists():
         raise FileNotFoundError(f"The file {filename} does not exist.")
 
+    required_columns = [
+        "time",
+        "sleep_status",
+        "sib_periods",
+        "spt_periods",
+        "nonwear_status",
+    ]
+
     if filename.suffix == ".csv":
-        processed_data = pl.read_csv(filename, try_parse_dates=True)
+        try:
+            processed_data = pl.read_csv(
+                filename, try_parse_dates=True, columns=required_columns
+            )
+        except pl.exceptions.ColumnNotFoundError as e:
+            raise ValueError(f"Missing required columns in the data: {str(e)}") from e
     elif filename.suffix == ".parquet":
-        processed_data = pl.read_parquet(filename)
+        try:
+            processed_data = pl.read_parquet(filename, columns=required_columns)
+        except pl.exceptions.ColumnNotFoundError as e:
+            raise ValueError(f"Missing required columns in the data: {str(e)}") from e
     else:
         raise ValueError(
             (
@@ -36,20 +55,4 @@ def read_processed_data(filename: pathlib.Path) -> pl.DataFrame:
             )
         )
 
-    required_columns = [
-        "time",
-        "sleep_status",
-        "sib_periods",
-        "spt_periods",
-        "nonwear_status",
-    ]
-    missing_columns = [
-        col for col in required_columns if col not in processed_data.columns
-    ]
-
-    if missing_columns:
-        raise ValueError(
-            f"Missing required columns in the data: {', '.join(missing_columns)}"
-        )
-
-    return processed_data.select(required_columns)
+    return processed_data
