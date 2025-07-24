@@ -32,11 +32,14 @@ def test_file_not_found() -> None:
 
 def test_unsupported_file_format(sample_txt_data: pathlib.Path) -> None:
     """Test reading a file with an unsupported format raises ValueError."""
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="Unsupported file format: .txt"):
         read_processed_data(sample_txt_data)
 
 
 def test_missing_required_columns(sample_incomplete_data: pathlib.Path) -> None:
     """Test reading a file with missing required columns raises ValueError."""
-    with pytest.raises(ValueError):
+    with pytest.raises(
+        ValueError,
+        match="Missing required columns in the data:",
+    ):
         read_processed_data(sample_incomplete_data)
