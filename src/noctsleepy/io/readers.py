@@ -37,22 +37,18 @@ def read_wristpy_data(filename: pathlib.Path) -> pl.DataFrame:
 
     if filename.suffix == ".csv":
         try:
-            processed_data = pl.read_csv(
-                filename, try_parse_dates=True, columns=required_columns
-            )
+            return pl.read_csv(filename, try_parse_dates=True, columns=required_columns)
         except pl.exceptions.ColumnNotFoundError as e:
             raise ValueError(f"Missing required columns in the data: {str(e)}") from e
-    elif filename.suffix == ".parquet":
+    if filename.suffix == ".parquet":
         try:
-            processed_data = pl.read_parquet(filename, columns=required_columns)
+            return pl.read_parquet(filename, columns=required_columns)
         except pl.exceptions.ColumnNotFoundError as e:
             raise ValueError(f"Missing required columns in the data: {str(e)}") from e
-    else:
-        raise ValueError(
-            (
-                f"Unsupported file format: {filename.suffix}. "
-                "Supported formats are .csv and .parquet."
-            )
-        )
 
-    return processed_data
+    raise ValueError(
+        (
+            f"Unsupported file format: {filename.suffix}. "
+            "Supported formats are .csv and .parquet."
+        )
+    )
