@@ -1,14 +1,16 @@
 [project]
-name = "wristpy_post_process"
+name = "noctsleepy"
 version = "0.0.1"
-description = "This package provides a set of pipeline and utilities to compute key metrics about sleep from already processed wrist-worn actigraphy data."
+description = "This package provides a toolbox of functions to compute key metrics about nocturnal sleep from already processed wrist-worn actigraphy data."
 authors = [
   {name = "Adam Santorelli", email = "adam.santorelli@childmind.org"}
 ]
 license = "LGPL-2.1"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "polars>=1.31.0",
+]
 
 [dependency-groups]
 dev = [
