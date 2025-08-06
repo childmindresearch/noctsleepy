@@ -26,45 +26,41 @@ def create_dummy_data() -> pl.DataFrame:
     )
 
 
-def test_find_valid_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
+def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     """Test finding valid nights in the dummy data."""
-    nocturnal_interval = (
-        datetime.time(hour=20, minute=0),
-        datetime.time(hour=8, minute=0),
-    )
+    night_start = datetime.time(hour=20, minute=0)
+    night_end = datetime.time(hour=8, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.find_valid_nights(
-        create_dummy_data, nocturnal_interval, nw_threshold
+    valid_nights = sleep_variables.filter_nights(
+        create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
-        (valid_nights["time"].dt.time() >= nocturnal_interval[0])
-        | (valid_nights["time"].dt.time() <= nocturnal_interval[1])
+        (valid_nights["time"].dt.time() >= night_start)
+        | (valid_nights["time"].dt.time() <= night_end)
     ).all()
 
-    assert valid_nights["night_number"].unique().len() == 1, (
-        f"Expected 1 valid night, got {valid_nights['night_number'].unique().len()}"
+    assert valid_nights["night_date"].unique().len() == 1, (
+        f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
 
-def test_find_valid_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
+def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     """Test finding valid nights in the dummy data."""
-    nocturnal_interval = (
-        datetime.time(hour=20, minute=0),
-        datetime.time(hour=23, minute=59),
-    )
+    night_start = datetime.time(hour=20, minute=0)
+    night_end = datetime.time(hour=23, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.find_valid_nights(
-        create_dummy_data, nocturnal_interval, nw_threshold
+    valid_nights = sleep_variables.filter_nights(
+        create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
-        (valid_nights["time"].dt.time() >= nocturnal_interval[0])
-        & (valid_nights["time"].dt.time() <= nocturnal_interval[1])
+        (valid_nights["time"].dt.time() >= night_start)
+        & (valid_nights["time"].dt.time() <= night_end)
     ).all()
 
-    assert valid_nights["night_number"].unique().len() == 1, (
-        f"Expected 1 valid night, got {valid_nights['night_number'].unique().len()}"
+    assert valid_nights["night_date"].unique().len() == 1, (
+        f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
