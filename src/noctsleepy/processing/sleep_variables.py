@@ -74,4 +74,4 @@ def filter_nights(
         pl.col("non_wear_percentage") <= nw_threshold
     ).select(["night_date"])
 
-    return nocturnal_sleep.join(valid_nights, on="night_date", how="inner").sort("time")
+    return nocturnal_sleep.join(valid_nights, on="night_date").sort("time")
