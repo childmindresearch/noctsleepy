@@ -78,6 +78,6 @@ def test_sleepmetrics_class() -> None:
     assert metrics.time_in_bed is None, "time_in_bed should be None by default"
     assert metrics.sleep_duration == [8.2, 7.8], "sleep_duration should match input"
     assert metrics.waso_30 == 3.2, "waso_30 should be 3.2"
-    assert metrics.weekday_midpoint[0] == datetime.time(2, 30), (
-        "First weekday_midpoint should be 02:30"
+    assert metrics.weekday_midpoint == [datetime.time(2, 30), datetime.time(3, 0)], (
+        "First weekday_midpoint should be 02:30, second should be 03:00"
     )
