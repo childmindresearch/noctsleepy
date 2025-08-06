@@ -32,7 +32,7 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_end = datetime.time(hour=8, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.filter_nights(
+    valid_nights = sleep_variables._filter_nights(
         create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
@@ -52,7 +52,7 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_end = datetime.time(hour=23, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.filter_nights(
+    valid_nights = sleep_variables._filter_nights(
         create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
