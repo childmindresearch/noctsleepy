@@ -69,9 +69,9 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
 def test_sleepmetrics_class() -> None:
     """Test the SleepMetrics dataclass."""
     metrics = sleep_variables.SleepMetrics(
-        sleep_duration=[8.2, 7.8],
+        sleep_duration=(8.2, 7.8),
         waso_30=3.2,
-        weekday_midpoint=[datetime.time(2, 30), datetime.time(3, 0)],
+        weekday_midpoint=(datetime.time(2, 30), datetime.time(3, 0)),
     )
 
     assert isinstance(metrics, sleep_variables.SleepMetrics)

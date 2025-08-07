@@ -35,17 +35,17 @@ class SleepMetrics:
 
     """
 
-    sleep_duration: Optional[list[float]] = None
-    time_in_bed: Optional[list[float]] = None
-    waso: Optional[list[float]] = None
-    sleep_efficiency: Optional[list[float]] = None
-    num_awakenings: Optional[list[int]] = None
+    sleep_duration: Optional[tuple[float, ...]] = None
+    time_in_bed: Optional[tuple[float, ...]] = None
+    waso: Optional[tuple[float, ...]] = None
+    sleep_efficiency: Optional[tuple[float, ...]] = None
+    num_awakenings: Optional[tuple[int, ...]] = None
     waso_30: Optional[float] = None
-    sleep_onset: Optional[list[datetime.time]] = None
-    sleep_wakeup: Optional[list[datetime.time]] = None
-    sleep_midpoint: Optional[list[datetime.time]] = None
-    weekday_midpoint: Optional[list[datetime.time]] = None
-    weekend_midpoint: Optional[list[datetime.time]] = None
+    sleep_onset: Optional[tuple[datetime.time, ...]] = None
+    sleep_wakeup: Optional[tuple[datetime.time, ...]] = None
+    sleep_midpoint: Optional[tuple[datetime.time, ...]] = None
+    weekday_midpoint: Optional[tuple[datetime.time, ...]] = None
+    weekend_midpoint: Optional[tuple[datetime.time, ...]] = None
     social_jetlag: Optional[float] = None
     interdaily_stability: Optional[float] = None
     interdaily_variability: Optional[float] = None
