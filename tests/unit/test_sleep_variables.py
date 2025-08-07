@@ -32,7 +32,7 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_end = datetime.time(hour=8, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.filter_nights(
+    valid_nights = sleep_variables._filter_nights(
         create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
@@ -52,7 +52,7 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_end = datetime.time(hour=23, minute=0)
     nw_threshold = 0.2
 
-    valid_nights = sleep_variables.filter_nights(
+    valid_nights = sleep_variables._filter_nights(
         create_dummy_data, night_start, night_end, nw_threshold
     )
     time_check = (
@@ -64,3 +64,20 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
+
+
+def test_sleepmetrics_class() -> None:
+    """Test the SleepMetrics dataclass."""
+    metrics = sleep_variables.SleepMetrics(
+        sleep_duration=(8.2, 7.8),
+        waso_30=3.2,
+        weekday_midpoint=(datetime.time(2, 30), datetime.time(3, 0)),
+    )
+
+    assert isinstance(metrics, sleep_variables.SleepMetrics)
+    assert metrics.time_in_bed is None, "time_in_bed should be None by default"
+    assert metrics.sleep_duration == (8.2, 7.8), "sleep_duration should match input"
+    assert metrics.waso_30 == 3.2, "waso_30 should be 3.2"
+    assert metrics.weekday_midpoint == (datetime.time(2, 30), datetime.time(3, 0)), (
+        "First weekday_midpoint should be 02:30, second should be 03:00"
+    )

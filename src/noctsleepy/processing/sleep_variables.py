@@ -1,11 +1,58 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
+from typing import Optional
 
 import polars as pl
+import pydantic
+from pydantic import dataclasses
 
 
-def filter_nights(
+@dataclasses.dataclass(config=pydantic.ConfigDict(validate_assignment=True))
+class SleepMetrics:
+    """Dataclass to hold all potential sleep metrics.
+
+    Attributes:
+        sleep_duration: Total sleep duration in minutes, computed from
+            the sum of sustained inactivity bouts within the SPT window.
+        time_in_bed: The total duration of the SPT window(s) in minutes.
+        waso: Wake After Sleep Onset, the total time spent awake after sleep onset.
+        sleep_efficiency: The ratio of total sleep time to total sleep window time,
+            expressed as a percentage.
+        num_awakenings: The number of distinct waking periods during the sleep window.
+        waso_30: Number of nights, normalized to a 30-day protocol, where WASO exceeds
+            30 minutes.
+        sleep_onset: Time when sleep starts each night.
+        sleep_wakeup: Time when sleep ends each night.
+        sleep_midpoint: The midpoint between sleep onset and wakeup time.
+        weekday_midpoint: The midpoint between sleep onset and wakeup time on weekdays.
+        weekend_midpoint: The midpoint between sleep onset and wakeup time on weekends.
+        social_jetlag: Difference in sleep midpoint between weekends and weekdays,
+            in minutes.
+        interdaily_stability: The ratio of variance ofthe 24-houraverage activity
+            pattern to the total variance in the data.
+        interdaily_variability: Variance of consecutive activity levels over
+            short time intervals.
+
+    """
+
+    sleep_duration: Optional[tuple[float, ...]] = None
+    time_in_bed: Optional[tuple[float, ...]] = None
+    waso: Optional[tuple[float, ...]] = None
+    sleep_efficiency: Optional[tuple[float, ...]] = None
+    num_awakenings: Optional[tuple[int, ...]] = None
+    waso_30: Optional[float] = None
+    sleep_onset: Optional[tuple[datetime.time, ...]] = None
+    sleep_wakeup: Optional[tuple[datetime.time, ...]] = None
+    sleep_midpoint: Optional[tuple[datetime.time, ...]] = None
+    weekday_midpoint: Optional[tuple[datetime.time, ...]] = None
+    weekend_midpoint: Optional[tuple[datetime.time, ...]] = None
+    social_jetlag: Optional[float] = None
+    interdaily_stability: Optional[float] = None
+    interdaily_variability: Optional[float] = None
+
+
+def _filter_nights(
     data: pl.DataFrame,
     night_start: datetime.time = datetime.time(hour=20, minute=0),
     night_end: datetime.time = datetime.time(hour=8, minute=0),
