@@ -13,6 +13,8 @@ class SleepMetrics:
     """Dataclass to hold all potential sleep metrics.
 
     Attributes:
+        sampling_time: The sampling time in seconds,
+            default is 5 seconds (from wristpy default output).
         sleep_duration: Total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
         time_in_bed: The total duration of the SPT window(s) in minutes.
@@ -36,10 +38,9 @@ class SleepMetrics:
 
     """
 
+    sampling_time: float = 5.0
     sleep_duration: Optional[tuple[float, ...]] = None
     time_in_bed: Optional[tuple[float, ...]] = None
-    waso: Optional[tuple[float, ...]] = None
-    sleep_efficiency: Optional[tuple[float, ...]] = None
     num_awakenings: Optional[tuple[int, ...]] = None
     waso_30: Optional[float] = None
     sleep_onset: Optional[tuple[datetime.time, ...]] = None
@@ -50,6 +51,56 @@ class SleepMetrics:
     social_jetlag: Optional[float] = None
     interdaily_stability: Optional[float] = None
     interdaily_variability: Optional[float] = None
+
+    def calculate_sleep_duration(self, night_data: pl.DataFrame) -> None:
+        """Calculate total sleep duration in minutes.
+
+        Args:
+            night_data: Dataframe with the filtered night data.
+
+        Returns:
+            Total sleep duration in minutes, or None if not available.
+        """
+        sleep_duration_metrics = night_data.group_by("night_date").agg(
+            [
+                pl.col("spt_periods").sum().alias("spt_count"),
+                pl.when(pl.col("spt_periods") & pl.col("sib_periods"))
+                .then(1)
+                .otherwise(0)
+                .sum()
+                .alias("sib_within_spt"),
+            ]
+        )
+        self.time_in_bed = tuple(
+            (sleep_duration_metrics["spt_count"] * self.sampling_time / 60).to_list()
+        )
+        self.sleep_duration = tuple(
+            (
+                sleep_duration_metrics["sib_within_spt"] * self.sampling_time / 60
+            ).to_list()
+        )
+
+    @property
+    def sleep_efficiency(self) -> Optional[tuple[float, ...]]:
+        """Calculate sleep efficiency as a percentage.
+
+        Defined as the ratio of total sleep time to total time in bed.
+        """
+        if not (self.sleep_duration and self.time_in_bed):
+            return None
+        return tuple(
+            (sleep / bed * 100 if bed > 0 else 0)
+            for sleep, bed in zip(self.sleep_duration, self.time_in_bed)
+        )
+
+    @property
+    def waso(self) -> Optional[tuple[float, ...]]:
+        """Calculate Wake After Sleep Onset (WASO) in minutes."""
+        if not (self.sleep_duration and self.time_in_bed):
+            return None
+        return tuple(
+            (bed - sleep) for sleep, bed in zip(self.sleep_duration, self.time_in_bed)
+        )
 
 
 def _filter_nights(
