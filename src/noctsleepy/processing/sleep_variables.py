@@ -1,13 +1,14 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
-from dataclasses import dataclass
 from typing import Optional
 
 import polars as pl
+import pydantic
+from pydantic import dataclasses
 
 
-@dataclass
+@dataclasses.dataclass(config=pydantic.ConfigDict(validate_assignment=True))
 class SleepMetrics:
     """Dataclass to hold all potential sleep metrics.
 
