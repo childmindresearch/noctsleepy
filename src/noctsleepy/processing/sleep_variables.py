@@ -56,9 +56,9 @@ class SleepMetrics:
     def __init__(
         self,
         data: pl.DataFrame,
-        night_start: datetime.datetime,
-        night_end: datetime.datetime,
-        nw_threshold: float,
+        night_start: datetime.time = datetime.time(hour=20, minute=0),
+        night_end: datetime.time = datetime.time(hour=8, minute=0),
+        nw_threshold: float = 0.2,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
 
@@ -122,27 +122,25 @@ class SleepMetrics:
     def waso(self) -> pl.Series:
         """Calculate Wake After Sleep Onset (WASO) in minutes."""
         if self._waso is None:
-            self._waso = (self.time_in_bed - self.sleep_duration).alias("waso")
+            self._waso = self.time_in_bed - self.sleep_duration
         return self._waso
 
     @property
-    def sleep_efficiency(self) -> Optional[pl.Series]:
+    def sleep_efficiency(self) -> pl.Series:
         """Calculate sleep efficiency as a percentage.
 
         Defined as the ratio of total sleep time to total time in bed.
         """
-        if not (self._sleep_duration and self._time_in_bed):
-            return None
         if self._sleep_efficiency is None:
-            self._sleep_efficiency = (self._sleep_duration / self._time_in_bed) * 100
+            self._sleep_efficiency = (self.sleep_duration / self.time_in_bed) * 100
         return self._sleep_efficiency
 
 
 def _filter_nights(
     data: pl.DataFrame,
-    night_start: datetime.time = datetime.time(hour=20, minute=0),
-    night_end: datetime.time = datetime.time(hour=8, minute=0),
-    nw_threshold: float = 0.2,
+    night_start: datetime.time,
+    night_end: datetime.time,
+    nw_threshold: float,
 ) -> pl.DataFrame:
     """Find valid nights in the processed actigraphy data.
 
