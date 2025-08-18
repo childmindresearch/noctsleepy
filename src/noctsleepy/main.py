@@ -16,8 +16,8 @@ def compute_sleep_metrics(
     input_data: pathlib.Path | str,
     night_start: typing.Optional[datetime.time] = None,
     night_end: typing.Optional[datetime.time] = None,
-    nw_threshold: typing.Optional[float] = 0.2,
-    selected_metrics: typing.Optional[SLEEP_METRIC_CATEGORIES] = None,
+    nw_threshold: float = 0.2,
+    selected_metrics: typing.Optional[list[SLEEP_METRIC_CATEGORIES]] = None,
 ) -> sleep_variables.SleepMetrics:
     """Compute sleep metrics from the provided data file.
 
@@ -30,9 +30,10 @@ def compute_sleep_metrics(
         input_data: Path to the input data file (CSV or Parquet).
         night_start: Start time of the nocturnal interval. If None, defaults to 20:00.
         night_end: End time of the nocturnal interval.  If None, defaults to 08:00.
-        nw_threshold: Non-wear threshold, below which a night is considered valid. If None,
-            defaults to 0.2.
-        selected_metrics: Specific metrics to compute. If None, all metrics are computed.
+        nw_threshold: Non-wear threshold, below which a night is considered valid.
+            If None, defaults to 0.2.
+        selected_metrics: Specific metrics to compute.
+             If None, all metrics are computed.
 
     Returns:
         An instance of SleepMetrics containing the computed metrics.
