@@ -26,16 +26,16 @@ class SleepMetrics:
             during the sleep window(s), per night.
         waso_30: Find the number of nights, normalized to a 30-day protocol,
             where WASO exceeds 30 minutes.
-        _sleep_onset: Time when sleep starts each night.
-        _sleep_wakeup: Time when sleep ends each night.
-        _sleep_midpoint: The midpoint between sleep onset and wakeup time.
-        _weekday_midpoint: The midpoint between sleep onset and wakeup time on weekdays.
-        _weekend_midpoint: The midpoint between sleep onset and wakeup time on weekends.
-        _social_jetlag: Difference in sleep midpoint between weekends and weekdays,
+        sleep_onset: Time when sleep starts each night.
+        sleep_wakeup: Time when sleep ends each night.
+        sleep_midpoint: The midpoint between sleep onset and wakeup time.
+        weekday_midpoint: The midpoint between sleep onset and wakeup time on weekdays.
+        weekend_midpoint: The midpoint between sleep onset and wakeup time on weekends.
+        social_jetlag: Difference in sleep midpoint between weekends and weekdays,
             in minutes.
-        _interdaily_stability: The ratio of variance ofthe 24-houraverage activity
+        interdaily_stability: The ratio of variance ofthe 24-houraverage activity
             pattern to the total variance in the data.
-        _interdaily_variability: Variance of consecutive activity levels over
+        interdaily_variability: Variance of consecutive activity levels over
             short time intervals.
 
     """
@@ -46,13 +46,13 @@ class SleepMetrics:
     _time_in_bed: typing.Optional[pl.Series] = None
     _sleep_efficiency: typing.Optional[pl.Series] = None
     _waso: typing.Optional[pl.Series] = None
-    _num_awakenings: typing.Optional[tuple[int, ...]] = None
+    _num_awakenings: typing.Optional[pl.Series] = None
     _waso_30: typing.Optional[float] = None
-    _sleep_onset: typing.Optional[tuple[datetime.time, ...]] = None
-    _sleep_wakeup: typing.Optional[tuple[datetime.time, ...]] = None
-    _sleep_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
-    _weekday_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
-    _weekend_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
+    _sleep_onset: typing.Optional[pl.Series] = None
+    _sleep_wakeup: typing.Optional[pl.Series] = None
+    _sleep_midpoint: typing.Optional[pl.Series] = None
+    _weekday_midpoint: typing.Optional[pl.Series] = None
+    _weekend_midpoint: typing.Optional[pl.Series] = None
     _social_jetlag: typing.Optional[float] = None
     _interdaily_stability: typing.Optional[float] = None
     _interdaily_variability: typing.Optional[float] = None
