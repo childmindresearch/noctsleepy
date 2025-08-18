@@ -72,3 +72,19 @@ def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:
 
     assert isinstance(metrics, sleep_variables.SleepMetrics)
     assert metrics._time_in_bed is None, "time_in_bed should be None by default"
+
+
+@pytest.mark.parametrize(
+    "selected_metrics", ["sleep_duration", "time_in_bed", "sleep_efficiency", "waso"]
+)
+def test_sleep_metrics_attributes(
+    create_dummy_data: pl.DataFrame, selected_metrics: str
+) -> None:
+    """Test the SleepMetrics attributes."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    getattr(metrics, selected_metrics)
+
+    assert isinstance(getattr(metrics, selected_metrics), pl.Series), (
+        f"{selected_metrics} should be a Polars Series"
+    )

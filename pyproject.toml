@@ -3,14 +3,14 @@ name = "noctsleepy"
 version = "0.0.1"
 description = "This package provides a toolbox of functions to compute key metrics about nocturnal sleep from already processed wrist-worn actigraphy data."
 authors = [
-  {name = "Adam Santorelli", email = "adam.santorelli@childmind.org"}
+  {name = "Adam Santorelli", email = "adam.santorelli@childmind.org"},
+  {name = "Reinder Vos de Wael", email = "reinder.vosdewael@childmind.org"}
 ]
 license = "LGPL-2.1"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "polars>=1.31.0",
-    "pydantic>=2.11.7",
 ]
 
 [dependency-groups]

@@ -1,7 +1,8 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
-from typing import Optional
+import pathlib
+import typing
 
 import polars as pl
 
@@ -10,18 +11,21 @@ class SleepMetrics:
     """Class to hold all potential sleep metrics and methods to compute them.
 
     Attributes:
-        _night_data: Polars DataFrame containing only the filtered nights.
-        _sampling_time: The sampling time in seconds,
+        night_data: Polars DataFrame containing only the filtered nights.
+        sampling_time: The sampling time in seconds,
             default is 5 seconds (from wristpy default output).
-        _sleep_duration: Total sleep duration in minutes, computed from
+        sleep_duration: Calculate te total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
-        _time_in_bed: The total duration of the SPT window(s) in minutes.
-        _sleep_efficiency: The ratio of total sleep time to total sleep window time,
-            expressed as a percentage.
-        _waso: Wake After Sleep Onset, the total time spent awake after sleep onset.
-        _num_awakenings: The number of distinct waking periods during the sleep window.
-        _waso_30: Number of nights, normalized to a 30-day protocol, where WASO exceeds
-            30 minutes.
+        time_in_bed: Calculate the total duration of the SPT window(s) in minutes, this
+            is analogus to the time in bed.
+        sleep_efficiency: Calculate he ratio of total sleep time to total time in bed,
+            per night, expressed as a percentage.
+        waso: Calculate the "Wake After Sleep Onset", the total time spent awake
+            after sleep onset.
+        num_awakenings: Calculate the number of distinct waking periods
+            during the sleep window(s), per night.
+        waso_30: Find the number of nights, normalized to a 30-day protocol,
+            where WASO exceeds 30 minutes.
         _sleep_onset: Time when sleep starts each night.
         _sleep_wakeup: Time when sleep ends each night.
         _sleep_midpoint: The midpoint between sleep onset and wakeup time.
@@ -36,22 +40,22 @@ class SleepMetrics:
 
     """
 
-    _night_data: pl.DataFrame
-    _sampling_time: float = 5.0
-    _sleep_duration: Optional[pl.Series] = None
-    _time_in_bed: Optional[pl.Series] = None
-    _sleep_efficiency: Optional[pl.Series] = None
-    _waso: Optional[pl.Series] = None
-    _num_awakenings: Optional[tuple[int, ...]] = None
-    _waso_30: Optional[float] = None
-    _sleep_onset: Optional[tuple[datetime.time, ...]] = None
-    _sleep_wakeup: Optional[tuple[datetime.time, ...]] = None
-    _sleep_midpoint: Optional[tuple[datetime.time, ...]] = None
-    _weekday_midpoint: Optional[tuple[datetime.time, ...]] = None
-    _weekend_midpoint: Optional[tuple[datetime.time, ...]] = None
-    _social_jetlag: Optional[float] = None
-    _interdaily_stability: Optional[float] = None
-    _interdaily_variability: Optional[float] = None
+    night_data: pl.DataFrame
+    sampling_time: float = 5.0
+    _sleep_duration: typing.Optional[pl.Series] = None
+    _time_in_bed: typing.Optional[pl.Series] = None
+    _sleep_efficiency: typing.Optional[pl.Series] = None
+    _waso: typing.Optional[pl.Series] = None
+    _num_awakenings: typing.Optional[tuple[int, ...]] = None
+    _waso_30: typing.Optional[float] = None
+    _sleep_onset: typing.Optional[tuple[datetime.time, ...]] = None
+    _sleep_wakeup: typing.Optional[tuple[datetime.time, ...]] = None
+    _sleep_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
+    _weekday_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
+    _weekend_midpoint: typing.Optional[tuple[datetime.time, ...]] = None
+    _social_jetlag: typing.Optional[float] = None
+    _interdaily_stability: typing.Optional[float] = None
+    _interdaily_variability: typing.Optional[float] = None
 
     def __init__(
         self,
@@ -71,17 +75,15 @@ class SleepMetrics:
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
         """
-        self._night_data = _filter_nights(data, night_start, night_end, nw_threshold)
-        self._sampling_time = (
-            self._night_data["time"].dt.time().diff()[1].total_seconds()
-        )
+        self.night_data = _filter_nights(data, night_start, night_end, nw_threshold)
+        self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
 
     @property
     def sleep_duration(self) -> pl.Series:
         """Calculate total sleep duration in minutes."""
         if self._sleep_duration is None:
             self._sleep_duration = (
-                self._night_data.group_by("night_date")
+                self.night_data.group_by("night_date")
                 .agg(
                     [
                         (
@@ -89,7 +91,7 @@ class SleepMetrics:
                             .then(1)
                             .otherwise(0)
                             .sum()
-                            * (self._sampling_time / 60)
+                            * (self.sampling_time / 60)
                         ).alias("sib_within_spt"),
                     ]
                 )
@@ -104,12 +106,12 @@ class SleepMetrics:
         """Calculate total time in bed in minutes."""
         if self._time_in_bed is None:
             self._time_in_bed = (
-                self._night_data.group_by("night_date")
+                self.night_data.group_by("night_date")
                 .agg(
                     [
-                        (
-                            pl.col("spt_periods").sum() * (self._sampling_time / 60)
-                        ).alias("spt_count"),
+                        (pl.col("spt_periods").sum() * (self.sampling_time / 60)).alias(
+                            "spt_count"
+                        ),
                     ]
                 )
                 .sort("night_date")
@@ -134,6 +136,22 @@ class SleepMetrics:
         if self._sleep_efficiency is None:
             self._sleep_efficiency = (self.sleep_duration / self.time_in_bed) * 100
         return self._sleep_efficiency
+
+    def save_to_csv(self, filename: pathlib.Path) -> None:
+        """Save the sleep metrics to a CSV file.
+
+        Args:
+            filename: The path to the output CSV file.
+        """
+        df = pl.DataFrame(
+            {
+                "sleep_duration": self._sleep_duration,
+                "time_in_bed": self._time_in_bed,
+                "sleep_efficiency": self._sleep_efficiency,
+                "waso": self._waso,
+            }
+        )
+        df.write_csv(filename)
 
 
 def _filter_nights(
