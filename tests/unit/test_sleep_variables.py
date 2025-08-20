@@ -83,8 +83,6 @@ def test_sleep_metrics_attributes(
     """Test the SleepMetrics attributes."""
     metrics = sleep_variables.SleepMetrics(create_dummy_data)
 
-    getattr(metrics, selected_metrics)
-
     assert isinstance(getattr(metrics, selected_metrics), pl.Series), (
         f"{selected_metrics} should be a Polars Series"
     )

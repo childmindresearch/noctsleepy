@@ -2,7 +2,7 @@
 
 import datetime
 import pathlib
-import typing
+from typing import Optional
 
 import polars as pl
 
@@ -21,41 +21,29 @@ class SleepMetrics:
         sleep_efficiency: Calculate he ratio of total sleep time to total time in bed,
             per night, expressed as a percentage.
         waso: Calculate the "Wake After Sleep Onset", the total time spent awake
-            after sleep onset.
-        num_awakenings: Calculate the number of distinct waking periods
-            during the sleep window(s), per night.
-        waso_30: Find the number of nights, normalized to a 30-day protocol,
-            where WASO exceeds 30 minutes.
-        sleep_onset: Time when sleep starts each night.
-        sleep_wakeup: Time when sleep ends each night.
-        sleep_midpoint: The midpoint between sleep onset and wakeup time.
-        weekday_midpoint: The midpoint between sleep onset and wakeup time on weekdays.
-        weekend_midpoint: The midpoint between sleep onset and wakeup time on weekends.
-        social_jetlag: Difference in sleep midpoint between weekends and weekdays,
-            in minutes.
-        interdaily_stability: The ratio of variance ofthe 24-houraverage activity
-            pattern to the total variance in the data.
-        interdaily_variability: Variance of consecutive activity levels over
-            short time intervals.
-
+            after sleep onset, in minutes.
+        sleep_onset: Time when the first sleep period starts, within the nocturnal
+            window, in HH:MM format, per night.
+        sleep_wakeup: Time when the last  in HH:MM format, per night.
+        sleep_midpoint: The midpoint of the sleep period, in HH:MM.
     """
 
     night_data: pl.DataFrame
     sampling_time: float = 5.0
-    _sleep_duration: typing.Optional[pl.Series] = None
-    _time_in_bed: typing.Optional[pl.Series] = None
-    _sleep_efficiency: typing.Optional[pl.Series] = None
-    _waso: typing.Optional[pl.Series] = None
-    _num_awakenings: typing.Optional[pl.Series] = None
-    _waso_30: typing.Optional[float] = None
-    _sleep_onset: typing.Optional[pl.Series] = None
-    _sleep_wakeup: typing.Optional[pl.Series] = None
-    _sleep_midpoint: typing.Optional[pl.Series] = None
-    _weekday_midpoint: typing.Optional[pl.Series] = None
-    _weekend_midpoint: typing.Optional[pl.Series] = None
-    _social_jetlag: typing.Optional[float] = None
-    _interdaily_stability: typing.Optional[float] = None
-    _interdaily_variability: typing.Optional[float] = None
+    _sleep_duration: Optional[pl.Series] = None
+    _time_in_bed: Optional[pl.Series] = None
+    _sleep_efficiency: Optional[pl.Series] = None
+    _waso: Optional[pl.Series] = None
+    _num_awakenings: Optional[pl.Series] = None
+    _waso_30: Optional[float] = None
+    _sleep_onset: Optional[pl.Series] = None
+    _sleep_wakeup: Optional[pl.Series] = None
+    _sleep_midpoint: Optional[pl.Series] = None
+    _weekday_midpoint: Optional[pl.Series] = None
+    _weekend_midpoint: Optional[pl.Series] = None
+    _social_jetlag: Optional[float] = None
+    _interdaily_stability: Optional[float] = None
+    _interdaily_variability: Optional[float] = None
 
     def __init__(
         self,
@@ -136,6 +124,43 @@ class SleepMetrics:
         if self._sleep_efficiency is None:
             self._sleep_efficiency = (self.sleep_duration / self.time_in_bed) * 100
         return self._sleep_efficiency
+
+    @property
+    def sleep_onset(self) -> pl.Series:
+        """Calculate the sleep onset time in HH:MM format per night."""
+        if self._sleep_onset is None:
+            self._sleep_onset = (
+                self.night_data.filter(pl.col("spt_periods"))
+                .group_by("night_date")
+                .agg(pl.col("time").min().alias("sleep_onset"))
+                .sort("night_date")
+                .select("sleep_onset")
+                .to_series()
+                .dt.time()
+            )
+        return self._sleep_onset
+
+    @property
+    def sleep_wakeup(self) -> pl.Series:
+        """Calculate the wakeup time in HH:MM format per night."""
+        if self._sleep_wakeup is None:
+            self._sleep_wakeup = (
+                self.night_data.filter(pl.col("spt_periods"))
+                .group_by("night_date")
+                .agg(pl.col("time").max().alias("sleep_onset"))
+                .sort("night_date")
+                .select("sleep_onset")
+                .to_series()
+                .dt.time()
+            )
+        return self._sleep_wakeup
+
+    @property
+    def sleep_midpoint(self) -> pl.Series:
+        """Calculate the midpoint of the sleep period in HH:MM format per night."""
+        if self._sleep_midpoint is None:
+            self._sleep_midpoint = (self.sleep_onset + self.sleep_wakeup) / 2
+        return self._sleep_midpoint
 
     def save_to_csv(self, filename: pathlib.Path) -> None:
         """Save the sleep metrics to a CSV file.

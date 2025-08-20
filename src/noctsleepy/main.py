@@ -2,22 +2,20 @@
 
 import datetime
 import pathlib
-import typing
+from typing import Iterable, Literal, Optional
 
 from noctsleepy.io import readers
 from noctsleepy.processing import sleep_variables
 
-SLEEP_METRIC_CATEGORIES = typing.Literal[
-    "sleep_duration", "sleep_continuity", "sleep_timing"
-]
+SLEEP_METRIC_CATEGORIES = Literal["sleep_duration", "sleep_continuity", "sleep_timing"]
 
 
 def compute_sleep_metrics(
     input_data: pathlib.Path | str,
-    night_start: typing.Optional[datetime.time] = None,
-    night_end: typing.Optional[datetime.time] = None,
+    night_start: Optional[datetime.time] = None,
+    night_end: Optional[datetime.time] = None,
     nw_threshold: float = 0.2,
-    selected_metrics: typing.Optional[list[SLEEP_METRIC_CATEGORIES]] = None,
+    selected_metrics: Optional[Iterable[SLEEP_METRIC_CATEGORIES]] = None,
 ) -> sleep_variables.SleepMetrics:
     """Compute sleep metrics from the provided data file.
 
@@ -38,6 +36,15 @@ def compute_sleep_metrics(
     Returns:
         An instance of SleepMetrics containing the computed metrics.
     """
+    metric_mapping: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
+        "sleep_duration": ["sleep_duration", "time_in_bed"],
+        "sleep_continuity": ["waso", "sleep_efficiency", "num_awakenings", "waso_30"],
+        "sleep_timing": [
+            "sleep_onset",
+            "sleep_wakeup",
+            "sleep_midpoint",
+        ],
+    }
     if night_start is None:
         night_start = datetime.time(hour=20, minute=0)
     if night_end is None:
@@ -47,12 +54,6 @@ def compute_sleep_metrics(
     sleep_data = sleep_variables.SleepMetrics(
         data, night_start, night_end, nw_threshold
     )
-
-    metric_mapping = {
-        "sleep_duration": ["sleep_duration", "time_in_bed"],
-        "sleep_continuity": ["waso", "sleep_efficiency", "num_awakenings", "waso_30"],
-        "sleep_timing": ["weekday_midpoint", "weekend_midpoint"],
-    }
 
     if selected_metrics is None:
         selected_metrics = ["sleep_duration", "sleep_continuity", "sleep_timing"]
