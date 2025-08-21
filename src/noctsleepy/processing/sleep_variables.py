@@ -1,6 +1,8 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
+import itertools
+import json
 import pathlib
 from typing import Optional
 
@@ -147,9 +149,9 @@ class SleepMetrics:
             self._sleep_wakeup = (
                 self.night_data.filter(pl.col("spt_periods"))
                 .group_by("night_date")
-                .agg(pl.col("time").max().alias("sleep_onset"))
+                .agg(pl.col("time").max().alias("sleep_wakeup"))
                 .sort("night_date")
-                .select("sleep_onset")
+                .select("sleep_wakeup")
                 .to_series()
                 .dt.time()
             )
@@ -159,24 +161,43 @@ class SleepMetrics:
     def sleep_midpoint(self) -> pl.Series:
         """Calculate the midpoint of the sleep period in HH:MM format per night."""
         if self._sleep_midpoint is None:
-            self._sleep_midpoint = (self.sleep_onset + self.sleep_wakeup) / 2
+            self._sleep_midpoint = pl.Series(
+                name="sleep_midpoint",
+                values=[
+                    _get_night_midpoint(start, end)
+                    for start, end in zip(
+                        self.sleep_onset, self.sleep_wakeup, strict=True
+                    )
+                ],
+            )
         return self._sleep_midpoint
 
-    def save_to_csv(self, filename: pathlib.Path) -> None:
-        """Save the sleep metrics to a CSV file.
+    def save_to_json(
+        self, filename: pathlib.Path, requested_metrics: itertools.chain[str]
+    ) -> None:
+        """Save the sleep metrics to a json file.
 
         Args:
             filename: The path to the output CSV file.
+            requested_metrics: An iterable of the metric names to compute
+                and include in the output.
         """
-        df = pl.DataFrame(
-            {
-                "sleep_duration": self._sleep_duration,
-                "time_in_bed": self._time_in_bed,
-                "sleep_efficiency": self._sleep_efficiency,
-                "waso": self._waso,
-            }
-        )
-        df.write_csv(filename)
+        metrics_dict = {}
+
+        for metric in requested_metrics:
+            value = getattr(self, metric)
+
+            if hasattr(value, "to_list"):
+                list_values = value.to_list()
+                if list_values and isinstance(list_values[0], datetime.time):
+                    metrics_dict[metric] = [t.strftime("%H:%M:%S") for t in list_values]
+                else:
+                    metrics_dict[metric] = list_values
+            else:
+                metrics_dict[metric] = value
+
+        with open(filename, "w") as f:
+            json.dump(metrics_dict, f, indent=2)
 
 
 def _filter_nights(
@@ -249,3 +270,27 @@ def _filter_nights(
     ).select(["night_date"])
 
     return nocturnal_sleep.join(valid_nights, on="night_date").sort("time")
+
+
+def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.time:
+    """Calculate the midpoint of a nocturnal interval.
+
+    Args:
+        start: The start time of the nocturnal interval.
+        end: The end time of the nocturnal interval.
+
+    Returns:
+        A datetime.time object representing the midpoint of the nocturnal interval.
+    """
+    start_s = start.hour * 3600 + start.minute * 60 + start.second
+    end_s = end.hour * 3600 + end.minute * 60 + end.second
+
+    if end_s < start_s:
+        end_s += 24 * 3600
+
+    midpoint_s = (start_s + end_s) // 2
+
+    midpoint_hour = (midpoint_s % (24 * 3600)) // 3600
+    midpoint_minute = (midpoint_s % 3600) // 60
+    midpoint_second = midpoint_s % 60
+    return datetime.time(midpoint_hour, midpoint_minute, midpoint_second)

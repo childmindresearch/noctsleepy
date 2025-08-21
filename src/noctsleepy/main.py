@@ -1,6 +1,7 @@
 """Python based runner for noctscleepy."""
 
 import datetime
+import itertools
 import pathlib
 from typing import Iterable, Literal, Optional
 
@@ -8,6 +9,16 @@ from noctsleepy.io import readers
 from noctsleepy.processing import sleep_variables
 
 SLEEP_METRIC_CATEGORIES = Literal["sleep_duration", "sleep_continuity", "sleep_timing"]
+
+METRIC_MAPPING: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
+    "sleep_duration": ["sleep_duration", "time_in_bed"],
+    "sleep_continuity": ["waso", "sleep_efficiency"],
+    "sleep_timing": [
+        "sleep_onset",
+        "sleep_wakeup",
+        "sleep_midpoint",
+    ],
+}
 
 
 def compute_sleep_metrics(
@@ -36,19 +47,13 @@ def compute_sleep_metrics(
     Returns:
         An instance of SleepMetrics containing the computed metrics.
     """
-    metric_mapping: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
-        "sleep_duration": ["sleep_duration", "time_in_bed"],
-        "sleep_continuity": ["waso", "sleep_efficiency", "num_awakenings", "waso_30"],
-        "sleep_timing": [
-            "sleep_onset",
-            "sleep_wakeup",
-            "sleep_midpoint",
-        ],
-    }
     if night_start is None:
         night_start = datetime.time(hour=20, minute=0)
     if night_end is None:
         night_end = datetime.time(hour=8, minute=0)
+    output_file = pathlib.Path(input_data).with_name(
+        pathlib.Path(input_data).stem + "_sleep_metrics.json"
+    )
 
     data = readers.read_wristpy_data(pathlib.Path(input_data))
     sleep_data = sleep_variables.SleepMetrics(
@@ -58,18 +63,10 @@ def compute_sleep_metrics(
     if selected_metrics is None:
         selected_metrics = ["sleep_duration", "sleep_continuity", "sleep_timing"]
 
-    metrics_to_compute = []
-    for category in selected_metrics:
-        if category in metric_mapping:
-            metrics_to_compute.extend(metric_mapping[category])
-
-    for prop in metrics_to_compute:
-        if hasattr(sleep_data, prop):
-            getattr(sleep_data, prop)
-
-    output_file = pathlib.Path(input_data).with_name(
-        pathlib.Path(input_data).stem + "_sleep_metrics.csv"
+    metrics_to_compute = itertools.chain.from_iterable(
+        METRIC_MAPPING[metric] for metric in selected_metrics
     )
-    sleep_data.save_to_csv(output_file)
+
+    sleep_data.save_to_json(output_file, metrics_to_compute)
 
     return sleep_data
