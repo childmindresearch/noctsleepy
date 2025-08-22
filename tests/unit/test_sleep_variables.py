@@ -75,14 +75,35 @@ def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:
 
 
 @pytest.mark.parametrize(
-    "selected_metrics", ["sleep_duration", "time_in_bed", "sleep_efficiency", "waso"]
+    "selected_metrics, expected_values",
+    [
+        ("sleep_duration", [720]),
+        ("time_in_bed", [720]),
+        ("sleep_efficiency", [100.0]),
+        ("waso", [0.0]),
+    ],
 )
 def test_sleep_metrics_attributes(
-    create_dummy_data: pl.DataFrame, selected_metrics: str
+    create_dummy_data: pl.DataFrame, selected_metrics: str, expected_values: pl.Series
 ) -> None:
     """Test the SleepMetrics attributes."""
     metrics = sleep_variables.SleepMetrics(create_dummy_data)
 
-    assert isinstance(getattr(metrics, selected_metrics), pl.Series), (
-        f"{selected_metrics} should be a Polars Series"
+    result = getattr(metrics, selected_metrics)
+
+    assert result.to_list() == expected_values, (
+        f"Expected {expected_values.to_list()}, got {result.to_list()}"
+    )
+
+
+def test_get_night_midpoint() -> None:
+    """Test the get_night_midpoint method."""
+    sleep_onset = datetime.time(hour=22, minute=0)
+    sleep_wakeup = datetime.time(hour=6, minute=10)
+    expected_midpoint = datetime.time(hour=2, minute=5)
+
+    midpoint = sleep_variables._get_night_midpoint(sleep_onset, sleep_wakeup)
+
+    assert midpoint == expected_midpoint, (
+        f"Expected midpoint {expected_midpoint}, got {midpoint}"
     )

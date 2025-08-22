@@ -1,10 +1,9 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
-import itertools
 import json
 import pathlib
-from typing import Optional
+from typing import Iterable, Optional
 
 import polars as pl
 
@@ -173,7 +172,7 @@ class SleepMetrics:
         return self._sleep_midpoint
 
     def save_to_json(
-        self, filename: pathlib.Path, requested_metrics: itertools.chain[str]
+        self, filename: pathlib.Path, requested_metrics: Iterable[str]
     ) -> None:
         """Save the sleep metrics to a json file.
 
@@ -182,22 +181,23 @@ class SleepMetrics:
             requested_metrics: An iterable of the metric names to compute
                 and include in the output.
         """
-        metrics_dict = {}
 
-        for metric in requested_metrics:
-            value = getattr(self, metric)
+        def value_to_string(value: pl.Series | float) -> list[str] | str:
+            if isinstance(value, pl.Series):
+                return [
+                    elem.strftime("%H:%M:%S")
+                    if isinstance(elem, datetime.time)
+                    else elem
+                    for elem in value
+                ]
 
-            if hasattr(value, "to_list"):
-                list_values = value.to_list()
-                if list_values and isinstance(list_values[0], datetime.time):
-                    metrics_dict[metric] = [t.strftime("%H:%M:%S") for t in list_values]
-                else:
-                    metrics_dict[metric] = list_values
-            else:
-                metrics_dict[metric] = value
+            return str(value)
 
-        with open(filename, "w") as f:
-            json.dump(metrics_dict, f, indent=2)
+        metrics_dict = {
+            key: value_to_string(getattr(self, key)) for key in requested_metrics
+        }
+
+        filename.write_text(json.dumps(metrics_dict, indent=2))
 
 
 def _filter_nights(
