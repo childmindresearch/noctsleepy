@@ -27,6 +27,7 @@ class SleepMetrics:
             window, in HH:MM format, per night.
         sleep_wakeup: Time when the last  in HH:MM format, per night.
         sleep_midpoint: The midpoint of the sleep period, in HH:MM.
+        num_awakenings: Calculate the number of awakenings during the sleep period.
     """
 
     night_data: pl.DataFrame
@@ -170,6 +171,24 @@ class SleepMetrics:
                 ],
             )
         return self._sleep_midpoint
+
+    @property
+    def num_awakenings(self) -> pl.Series:
+        """Calculate the number of awakenings during the sleep period."""
+        if self._num_awakenings is None:
+            self._num_awakenings = (
+                self.night_data.filter(pl.col("spt_periods"))
+                .group_by("night_date")
+                .agg(
+                    (pl.col("sib_periods").cast(pl.Int8).diff().eq(-1).sum()).alias(
+                        "num_awakenings"
+                    )
+                )
+                .sort("night_date")
+                .select("num_awakenings")
+            )
+
+        return self._num_awakenings
 
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]
