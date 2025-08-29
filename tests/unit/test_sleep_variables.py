@@ -74,6 +74,26 @@ def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:
     assert metrics._time_in_bed is None, "time_in_bed should be None by default"
 
 
+def test_sleepmetrics_no_valid_nights() -> None:
+    """Test the SleepMetrics dataclass raises ValueError when no valid nights."""
+    dummy_date = datetime.datetime(year=2024, month=5, day=2, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(100)
+    ]
+    bad_data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sleep_status": [True] * 100,
+            "sib_periods": [True] * 100,
+            "spt_periods": [True] * 100,
+            "nonwear_status": [False] * 100,
+        }
+    )
+
+    with pytest.raises(ValueError, match="No valid nights found in the data."):
+        sleep_variables.SleepMetrics(bad_data)
+
+
 @pytest.mark.parametrize(
     "selected_metrics, expected_values",
     [
@@ -118,3 +138,12 @@ def test_num_awakenings(create_dummy_data: pl.DataFrame) -> None:
     assert num_awakenings.to_list() == [0], (
         f"Expected 0 awakenings, got {num_awakenings.to_list()}"
     )
+
+
+def test_waso_30(create_dummy_data: pl.DataFrame) -> None:
+    """Test the waso_30 attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    waso_30 = metrics.waso_30
+
+    assert waso_30 == 0.0, f"Expected 0 nights with waso > 30, got {waso_30}"

@@ -66,8 +66,13 @@ class SleepMetrics:
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
+
+        Raises:
+            ValueError: If there are no valid nights in the data.
         """
         self.night_data = _filter_nights(data, night_start, night_end, nw_threshold)
+        if self.night_data.is_empty():
+            raise ValueError("No valid nights found in the data.")
         self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
 
     @property
@@ -201,11 +206,7 @@ class SleepMetrics:
         """
         if self._waso_30 is None:
             num_nights = self.night_data["night_date"].n_unique()
-            if num_nights == 0:
-                self._waso_30 = 0.0
-            else:
-                nights_waso_over_30 = (self.waso > 30).sum()
-                self._waso_30 = (nights_waso_over_30 / num_nights) * 30
+            self._waso_30 = ((self.waso > 30).sum() / num_nights) * 30
 
         return self._waso_30
 
