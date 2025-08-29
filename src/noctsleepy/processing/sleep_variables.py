@@ -28,6 +28,8 @@ class SleepMetrics:
         sleep_wakeup: Time when the last  in HH:MM format, per night.
         sleep_midpoint: The midpoint of the sleep period, in HH:MM.
         num_awakenings: Calculate the number of awakenings during the sleep period.
+        waso_30: Calculate the number of nights where WASO exceeds 30 minutes,
+            normalized to a 30-day protocol.
     """
 
     night_data: pl.DataFrame
@@ -186,9 +188,26 @@ class SleepMetrics:
                 )
                 .sort("night_date")
                 .select("num_awakenings")
+                .to_series()
             )
 
         return self._num_awakenings
+
+    @property
+    def waso_30(self) -> float:
+        """Calculate the number of nights where WASO exceeds 30 minutes.
+
+        The result is normalized to a 30-day protocol.
+        """
+        if self._waso_30 is None:
+            num_nights = self.night_data["night_date"].n_unique()
+            if num_nights == 0:
+                self._waso_30 = 0.0
+            else:
+                nights_waso_over_30 = (self.waso > 30).sum()
+                self._waso_30 = (nights_waso_over_30 / num_nights) * 30
+
+        return self._waso_30
 
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]

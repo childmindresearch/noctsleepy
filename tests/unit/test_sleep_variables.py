@@ -107,3 +107,14 @@ def test_get_night_midpoint() -> None:
     assert midpoint == expected_midpoint, (
         f"Expected midpoint {expected_midpoint}, got {midpoint}"
     )
+
+
+def test_num_awakenings(create_dummy_data: pl.DataFrame) -> None:
+    """Test the num_awakenings attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    num_awakenings = metrics.num_awakenings
+
+    assert num_awakenings.to_list() == [0], (
+        f"Expected 0 awakenings, got {num_awakenings.to_list()}"
+    )
