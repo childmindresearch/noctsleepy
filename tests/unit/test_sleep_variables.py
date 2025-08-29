@@ -96,6 +96,30 @@ def test_sleep_metrics_attributes(
     )
 
 
+def test_sleep_onset(create_dummy_data: pl.DataFrame) -> None:
+    """Test the sleep_onset method."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+    expected_onset = datetime.time(hour=20, minute=0)
+
+    onset = metrics.sleep_onset
+
+    assert onset[0] == expected_onset, (
+        f"Expected onset {expected_onset}, got {onset[0]}"
+    )
+
+
+def test_sleep_wakeup(create_dummy_data: pl.DataFrame) -> None:
+    """Test the sleep_wakeup method."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+    expected_wakeup = datetime.time(hour=7, minute=59)
+
+    wakeup = metrics.sleep_wakeup
+
+    assert wakeup[0] == expected_wakeup, (
+        f"Expected wakeup {expected_wakeup}, got {wakeup[0]}"
+    )
+
+
 def test_get_night_midpoint() -> None:
     """Test the get_night_midpoint method."""
     sleep_onset = datetime.time(hour=22, minute=0)
