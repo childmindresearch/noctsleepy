@@ -136,7 +136,11 @@ class SleepMetrics:
 
     @property
     def sleep_onset(self) -> pl.Series:
-        """Calculate the sleep onset time in HH:MM format per night."""
+        """Calculate the sleep onset time in HH:MM format per night.
+
+        This is defined as the time when the first sleep period starts,
+        within the nocturnal window.
+        """
         if self._sleep_onset is None:
             self._sleep_onset = (
                 self.night_data.filter(pl.col("spt_periods"))
@@ -151,7 +155,11 @@ class SleepMetrics:
 
     @property
     def sleep_wakeup(self) -> pl.Series:
-        """Calculate the wakeup time in HH:MM format per night."""
+        """Calculate the wakeup time in HH:MM format per night.
+
+        Defined as the time when the last sleep period ends,
+        within the nocturnal window.
+        """
         if self._sleep_wakeup is None:
             self._sleep_wakeup = (
                 self.night_data.filter(pl.col("spt_periods"))
