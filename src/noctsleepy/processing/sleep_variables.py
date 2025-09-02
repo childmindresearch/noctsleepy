@@ -30,10 +30,18 @@ class SleepMetrics:
         num_awakenings: Calculate the number of awakenings during the sleep period.
         waso_30: Calculate the number of nights where WASO exceeds 30 minutes,
             normalized to a 30-day protocol.
+        weekday_midpoint: Average sleep midpoint on weekdays (defaults to Monday -
+            Friday night) in HH:MM format.
+        weekend_midpoint: Average sleep midpoint on weekends (defaults to Saturday -
+            Sunday night) in HH:MM format.
+        social_jetlag: Calculate the social jetlag, defined as the absolute difference
+            between the weekend and weekday sleep midpoints, in hours.
     """
 
     night_data: pl.DataFrame
     sampling_time: float = 5.0
+    weekday_list: Iterable[int] = (0, 1, 2, 3, 4)
+    weekend_list: Iterable[int] = (5, 6)
     _sleep_duration: Optional[pl.Series] = None
     _time_in_bed: Optional[pl.Series] = None
     _sleep_efficiency: Optional[pl.Series] = None
@@ -54,6 +62,8 @@ class SleepMetrics:
         data: pl.DataFrame,
         night_start: datetime.time = datetime.time(hour=20, minute=0),
         night_end: datetime.time = datetime.time(hour=8, minute=0),
+        weekday_list: Iterable[int] = [0, 1, 2, 3, 4],
+        weekend_list: Iterable[int] = [5, 6],
         nw_threshold: float = 0.2,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
@@ -66,6 +76,10 @@ class SleepMetrics:
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
+            weekday_list: List of integers (0=Monday, 6=Sunday) representing weekdays.
+                Default is [0, 1, 2, 3, 4] (Monday to Friday).
+            weekend_list: List of integers representing weekend days
+                Default is [5, 6] (Saturday and Sunday).
 
         Raises:
             ValueError: If there are no valid nights in the data.
@@ -74,6 +88,8 @@ class SleepMetrics:
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
         self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
+        self.weekdays = weekday_list
+        self.weekend = weekend_list
 
     @property
     def sleep_duration(self) -> pl.Series:
@@ -217,6 +233,86 @@ class SleepMetrics:
             self._waso_30 = ((self.waso > 30).sum() / num_nights) * 30
 
         return self._waso_30
+
+    @property
+    def weekday_midpoint(self) -> pl.Series:
+        """Calculate the average sleep midpoint on weekdays in HH:MM format."""
+        if self._weekday_midpoint is None:
+            weekday_data = self.night_data.filter(
+                pl.col("night_date").dt.weekday().is_in(self.weekdays)
+            )
+            if weekday_data.is_empty():
+                self._weekday_midpoint = pl.Series(name="weekday_midpoint", values=[])
+            else:
+                weekday_onset = (
+                    weekday_data.filter(pl.col("spt_periods"))
+                    .group_by("night_date")
+                    .agg(pl.col("time").min().alias("weekday_sleep_onset"))
+                    .sort("night_date")
+                    .select("weekday_sleep_onset")
+                    .to_series()
+                    .dt.time()
+                )
+                weekday_wakeup = (
+                    weekday_data.filter(pl.col("spt_periods"))
+                    .group_by("night_date")
+                    .agg(pl.col("time").max().alias("weekday_sleep_wakeup"))
+                    .sort("night_date")
+                    .select("weekday_sleep_wakeup")
+                    .to_series()
+                    .dt.time()
+                )
+                self._weekday_midpoint = pl.Series(
+                    name="weekday_midpoint",
+                    values=[
+                        _get_night_midpoint(start, end)
+                        for start, end in zip(
+                            weekday_onset, weekday_wakeup, strict=True
+                        )
+                    ],
+                )
+
+        return self._weekday_midpoint
+
+    @property
+    def weekend_midpoint(self) -> pl.Series:
+        """Calculate the average sleep midpoint on weekends in HH:MM format."""
+        if self._weekend_midpoint is None:
+            weekend_data = self.night_data.filter(
+                pl.col("night_date").dt.weekday().is_in(self.weekend)
+            )
+            if weekend_data.is_empty():
+                self._weekend_midpoint = pl.Series(name="weekend_midpoint", values=[])
+            else:
+                weekend_onset = (
+                    weekend_data.filter(pl.col("spt_periods"))
+                    .group_by("night_date")
+                    .agg(pl.col("time").min().alias("weekend_sleep_onset"))
+                    .sort("night_date")
+                    .select("weekend_sleep_onset")
+                    .to_series()
+                    .dt.time()
+                )
+                weekend_wakeup = (
+                    weekend_data.filter(pl.col("spt_periods"))
+                    .group_by("night_date")
+                    .agg(pl.col("time").max().alias("weekend_sleep_wakeup"))
+                    .sort("night_date")
+                    .select("weekend_sleep_wakeup")
+                    .to_series()
+                    .dt.time()
+                )
+                self._weekend_midpoint = pl.Series(
+                    name="weekend_midpoint",
+                    values=[
+                        _get_night_midpoint(start, end)
+                        for start, end in zip(
+                            weekend_onset, weekend_wakeup, strict=True
+                        )
+                    ],
+                )
+
+        return self._weekend_midpoint
 
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]
