@@ -66,18 +66,68 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
 
-def test_sleepmetrics_class() -> None:
+def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:
     """Test the SleepMetrics dataclass."""
-    metrics = sleep_variables.SleepMetrics(
-        sleep_duration=(8.2, 7.8),
-        waso_30=3.2,
-        weekday_midpoint=(datetime.time(2, 30), datetime.time(3, 0)),
-    )
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
 
     assert isinstance(metrics, sleep_variables.SleepMetrics)
-    assert metrics.time_in_bed is None, "time_in_bed should be None by default"
-    assert metrics.sleep_duration == (8.2, 7.8), "sleep_duration should match input"
-    assert metrics.waso_30 == 3.2, "waso_30 should be 3.2"
-    assert metrics.weekday_midpoint == (datetime.time(2, 30), datetime.time(3, 0)), (
-        "First weekday_midpoint should be 02:30, second should be 03:00"
+    assert metrics._time_in_bed is None, "time_in_bed should be None by default"
+
+
+@pytest.mark.parametrize(
+    "selected_metrics, expected_values",
+    [
+        ("sleep_duration", [720]),
+        ("time_in_bed", [720]),
+        ("sleep_efficiency", [100.0]),
+        ("waso", [0.0]),
+    ],
+)
+def test_sleep_metrics_attributes(
+    create_dummy_data: pl.DataFrame, selected_metrics: str, expected_values: pl.Series
+) -> None:
+    """Test the SleepMetrics attributes."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    result = getattr(metrics, selected_metrics)
+
+    assert result.to_list() == expected_values, (
+        f"Expected {expected_values.to_list()}, got {result.to_list()}"
+    )
+
+
+def test_sleep_onset(create_dummy_data: pl.DataFrame) -> None:
+    """Test the sleep_onset method."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+    expected_onset = datetime.time(hour=20, minute=0)
+
+    onset = metrics.sleep_onset
+
+    assert onset[0] == expected_onset, (
+        f"Expected onset {expected_onset}, got {onset[0]}"
+    )
+
+
+def test_sleep_wakeup(create_dummy_data: pl.DataFrame) -> None:
+    """Test the sleep_wakeup method."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+    expected_wakeup = datetime.time(hour=7, minute=59)
+
+    wakeup = metrics.sleep_wakeup
+
+    assert wakeup[0] == expected_wakeup, (
+        f"Expected wakeup {expected_wakeup}, got {wakeup[0]}"
+    )
+
+
+def test_get_night_midpoint() -> None:
+    """Test the get_night_midpoint method."""
+    sleep_onset = datetime.time(hour=22, minute=0)
+    sleep_wakeup = datetime.time(hour=6, minute=10)
+    expected_midpoint = datetime.time(hour=2, minute=5)
+
+    midpoint = sleep_variables._get_night_midpoint(sleep_onset, sleep_wakeup)
+
+    assert midpoint == expected_midpoint, (
+        f"Expected midpoint {expected_midpoint}, got {midpoint}"
     )
