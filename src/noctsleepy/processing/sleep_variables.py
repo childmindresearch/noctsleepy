@@ -1,11 +1,22 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
+import enum
 import json
 import pathlib
 from typing import Iterable, Optional
 
 import polars as pl
+
+
+class DayOfWeek(enum.IntEnum):
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY = 7
 
 
 class SleepMetrics:
@@ -62,8 +73,17 @@ class SleepMetrics:
         data: pl.DataFrame,
         night_start: datetime.time = datetime.time(hour=20, minute=0),
         night_end: datetime.time = datetime.time(hour=8, minute=0),
-        weekday_list: Iterable[int] = [0, 1, 2, 3, 4],
-        weekend_list: Iterable[int] = [5, 6],
+        weekday_list: Iterable[DayOfWeek | int] = [
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
+        ],
+        weekend_list: Iterable[DayOfWeek | int] = [
+            DayOfWeek.SATURDAY,
+            DayOfWeek.SUNDAY,
+        ],
         nw_threshold: float = 0.2,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
@@ -158,15 +178,7 @@ class SleepMetrics:
         within the nocturnal window.
         """
         if self._sleep_onset is None:
-            self._sleep_onset = (
-                self.night_data.filter(pl.col("spt_periods"))
-                .group_by("night_date")
-                .agg(pl.col("time").min().alias("sleep_onset"))
-                .sort("night_date")
-                .select("sleep_onset")
-                .to_series()
-                .dt.time()
-            )
+            self._sleep_onset = _compute_onset(self.night_data)
         return self._sleep_onset
 
     @property
@@ -244,15 +256,7 @@ class SleepMetrics:
             if weekday_data.is_empty():
                 self._weekday_midpoint = pl.Series(name="weekday_midpoint", values=[])
             else:
-                weekday_onset = (
-                    weekday_data.filter(pl.col("spt_periods"))
-                    .group_by("night_date")
-                    .agg(pl.col("time").min().alias("weekday_sleep_onset"))
-                    .sort("night_date")
-                    .select("weekday_sleep_onset")
-                    .to_series()
-                    .dt.time()
-                )
+                weekday_onset = _compute_onset(weekday_data)
                 weekday_wakeup = (
                     weekday_data.filter(pl.col("spt_periods"))
                     .group_by("night_date")
@@ -452,3 +456,15 @@ def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.ti
     midpoint_minute = (midpoint_s % 3600) // 60
     midpoint_second = midpoint_s % 60
     return datetime.time(midpoint_hour, midpoint_minute, midpoint_second)
+
+
+def _compute_onset(df: pl.DataFrame) -> pl.Series:
+    return (
+        df.filter(pl.col("spt_periods"))
+        .group_by("night_date")
+        .agg(pl.col("time").min().alias("sleep_onset"))
+        .sort("night_date")
+        .select("sleep_onset")
+        .to_series()
+        .dt.time()
+    )
