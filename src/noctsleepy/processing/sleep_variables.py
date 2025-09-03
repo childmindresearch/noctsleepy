@@ -314,6 +314,21 @@ class SleepMetrics:
 
         return self._weekend_midpoint
 
+    @property
+    def social_jetlag(self) -> float:
+        """Calculate the social jetlag in hours.
+
+        Defined as the absolute difference between the weekend and weekday sleep
+        midpoints.
+        """
+        if self._social_jetlag is None:
+            if self.weekday_midpoint.is_empty() or self.weekend_midpoint.is_empty():
+                self._social_jetlag = float("nan")
+            else:
+                self._social_jetlag = self.weekend_midpoint - self.weekday_midpoint
+
+        return self._social_jetlag
+
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]
     ) -> None:
