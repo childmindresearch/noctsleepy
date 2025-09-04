@@ -18,7 +18,6 @@ def create_dummy_data() -> pl.DataFrame:
     return pl.DataFrame(
         {
             "time": dummy_datetime_list,
-            "sleep_status": [True] * 1440,
             "sib_periods": [True] * 1440,
             "spt_periods": [True] * 1440,
             "nonwear_status": [False] * 1440,
@@ -74,6 +73,25 @@ def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:
     assert metrics._time_in_bed is None, "time_in_bed should be None by default"
 
 
+def test_sleepmetrics_no_valid_nights() -> None:
+    """Test the SleepMetrics dataclass raises ValueError when no valid nights."""
+    dummy_date = datetime.datetime(year=2024, month=5, day=2, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(100)
+    ]
+    bad_data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 100,
+            "spt_periods": [True] * 100,
+            "nonwear_status": [False] * 100,
+        }
+    )
+
+    with pytest.raises(ValueError, match="No valid nights found in the data."):
+        sleep_variables.SleepMetrics(bad_data)
+
+
 @pytest.mark.parametrize(
     "selected_metrics, expected_values",
     [
@@ -101,10 +119,8 @@ def test_sleep_onset(create_dummy_data: pl.DataFrame) -> None:
     metrics = sleep_variables.SleepMetrics(create_dummy_data)
     expected_onset = datetime.time(hour=20, minute=0)
 
-    onset = metrics.sleep_onset
-
-    assert onset[0] == expected_onset, (
-        f"Expected onset {expected_onset}, got {onset[0]}"
+    assert metrics.sleep_onset[0] == expected_onset, (
+        f"Expected onset {expected_onset}, got {metrics.sleep_onset[0]}"
     )
 
 
@@ -113,10 +129,8 @@ def test_sleep_wakeup(create_dummy_data: pl.DataFrame) -> None:
     metrics = sleep_variables.SleepMetrics(create_dummy_data)
     expected_wakeup = datetime.time(hour=7, minute=59)
 
-    wakeup = metrics.sleep_wakeup
-
-    assert wakeup[0] == expected_wakeup, (
-        f"Expected wakeup {expected_wakeup}, got {wakeup[0]}"
+    assert metrics.sleep_wakeup[0] == expected_wakeup, (
+        f"Expected wakeup {expected_wakeup}, got {metrics.sleep_wakeup[0]}"
     )
 
 
@@ -130,4 +144,70 @@ def test_get_night_midpoint() -> None:
 
     assert midpoint == expected_midpoint, (
         f"Expected midpoint {expected_midpoint}, got {midpoint}"
+    )
+
+
+def test_num_awakenings() -> None:
+    """Test the num_awakenings attribute."""
+    dummy_date = datetime.datetime(year=2024, month=5, day=2, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(1440)
+    ]
+    data_with_awakenings = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 800
+            + [False] * 100
+            + [True] * 100
+            + [False] * 100
+            + [True] * 340,
+            "spt_periods": [True] * 1440,
+            "nonwear_status": [False] * 1440,
+        }
+    )
+    metrics = sleep_variables.SleepMetrics(data_with_awakenings)
+
+    assert metrics.num_awakenings.to_list() == [2], (
+        f"Expected 2 awakenings, got {metrics.num_awakenings.to_list()}"
+    )
+
+
+def test_num_awakenings_zero(create_dummy_data: pl.DataFrame) -> None:
+    """Test the num_awakenings attribute when there are no awakenings."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    assert metrics.num_awakenings.to_list() == [0], (
+        f"Expected 0 awakenings, got {metrics.num_awakenings.to_list()}"
+    )
+
+
+def test_waso_30() -> None:
+    """Test the waso_30 attribute."""
+    dummy_date = datetime.datetime(year=2024, month=5, day=2, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(1440)
+    ]
+    data_with_awakenings = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 800
+            + [False] * 100
+            + [True] * 100
+            + [False] * 100
+            + [True] * 340,
+            "spt_periods": [True] * 1440,
+            "nonwear_status": [False] * 1440,
+        }
+    )
+    metrics = sleep_variables.SleepMetrics(data_with_awakenings)
+
+    assert metrics.waso_30 == 30, f"Expected waso_30 = 30, got {metrics.waso_30}"
+
+
+def test_waso_30_zeero(create_dummy_data: pl.DataFrame) -> None:
+    """Test the waso_30 attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    assert metrics.waso_30 == 0.0, (
+        f"Expected 0 nights with waso > 30, got {metrics.waso_30}"
     )

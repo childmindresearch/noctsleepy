@@ -12,7 +12,7 @@ SLEEP_METRIC_CATEGORIES = Literal["sleep_duration", "sleep_continuity", "sleep_t
 
 METRIC_MAPPING: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
     "sleep_duration": ["sleep_duration", "time_in_bed"],
-    "sleep_continuity": ["waso", "sleep_efficiency"],
+    "sleep_continuity": ["waso", "sleep_efficiency", "num_awakenings", "waso_30"],
     "sleep_timing": [
         "sleep_onset",
         "sleep_wakeup",

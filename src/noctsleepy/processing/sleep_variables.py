@@ -15,11 +15,11 @@ class SleepMetrics:
         night_data: Polars DataFrame containing only the filtered nights.
         sampling_time: The sampling time in seconds,
             default is 5 seconds (from wristpy default output).
-        sleep_duration: Calculate te total sleep duration in minutes, computed from
+        sleep_duration: Calculate the total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
         time_in_bed: Calculate the total duration of the SPT window(s) in minutes, this
-            is analogus to the time in bed.
-        sleep_efficiency: Calculate he ratio of total sleep time to total time in bed,
+            is analogous to the time in bed.
+        sleep_efficiency: Calculate the ratio of total sleep time to total time in bed,
             per night, expressed as a percentage.
         waso: Calculate the "Wake After Sleep Onset", the total time spent awake
             after sleep onset, in minutes.
@@ -27,6 +27,9 @@ class SleepMetrics:
             window, in HH:MM format, per night.
         sleep_wakeup: Time when the last  in HH:MM format, per night.
         sleep_midpoint: The midpoint of the sleep period, in HH:MM.
+        num_awakenings: Calculate the number of awakenings during the sleep period.
+        waso_30: Calculate the number of nights where WASO exceeds 30 minutes,
+            normalized to a 30-day protocol.
     """
 
     night_data: pl.DataFrame
@@ -63,8 +66,13 @@ class SleepMetrics:
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
+
+        Raises:
+            ValueError: If there are no valid nights in the data.
         """
         self.night_data = _filter_nights(data, night_start, night_end, nw_threshold)
+        if self.night_data.is_empty():
+            raise ValueError("No valid nights found in the data.")
         self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
 
     @property
@@ -178,6 +186,37 @@ class SleepMetrics:
                 ],
             )
         return self._sleep_midpoint
+
+    @property
+    def num_awakenings(self) -> pl.Series:
+        """Calculate the number of awakenings during the sleep period."""
+        if self._num_awakenings is None:
+            self._num_awakenings = (
+                self.night_data.filter(pl.col("spt_periods"))
+                .group_by("night_date")
+                .agg(
+                    (pl.col("sib_periods").cast(pl.Int8).diff().eq(-1).sum()).alias(
+                        "num_awakenings"
+                    )
+                )
+                .sort("night_date")
+                .select("num_awakenings")
+                .to_series()
+            )
+
+        return self._num_awakenings
+
+    @property
+    def waso_30(self) -> float:
+        """Calculate the number of nights where WASO exceeds 30 minutes.
+
+        The result is normalized to a 30-day protocol.
+        """
+        if self._waso_30 is None:
+            num_nights = self.night_data["night_date"].n_unique()
+            self._waso_30 = ((self.waso > 30).sum() / num_nights) * 30
+
+        return self._waso_30
 
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]
