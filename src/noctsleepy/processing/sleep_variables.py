@@ -18,7 +18,7 @@ class SleepMetrics:
         sleep_duration: Calculate the total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
         time_in_bed: Calculate the total duration of the SPT window(s) in minutes, this
-            is analogus to the time in bed.
+            is analogous to the time in bed.
         sleep_efficiency: Calculate the ratio of total sleep time to total time in bed,
             per night, expressed as a percentage.
         waso: Calculate the "Wake After Sleep Onset", the total time spent awake
