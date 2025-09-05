@@ -1,6 +1,7 @@
 """Unit tests for the sleep_variables module."""
 
 import datetime
+import math
 
 import polars as pl
 import pytest
@@ -204,10 +205,67 @@ def test_waso_30() -> None:
     assert metrics.waso_30 == 30, f"Expected waso_30 = 30, got {metrics.waso_30}"
 
 
-def test_waso_30_zeero(create_dummy_data: pl.DataFrame) -> None:
+def test_waso_30_zero(create_dummy_data: pl.DataFrame) -> None:
     """Test the waso_30 attribute."""
     metrics = sleep_variables.SleepMetrics(create_dummy_data)
 
     assert metrics.waso_30 == 0.0, (
         f"Expected 0 nights with waso > 30, got {metrics.waso_30}"
     )
+
+
+def test_weekday_midpoint(create_dummy_data: pl.DataFrame) -> None:
+    """Test the weekday_midpoint attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    assert metrics.weekday_midpoint.to_list() == [
+        datetime.time(hour=1, minute=59, second=30)
+    ], f"Expected weekday midpoint 01:59:30, got {metrics.weekday_midpoint.to_list()}"
+
+
+def test_weekend_midpoint() -> None:
+    """Test the weekend_midpoint attribute."""
+    dummy_date = datetime.datetime(year=2025, month=5, day=3, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(1440)
+    ]
+    weekend_data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 1440,
+            "spt_periods": [True] * 1440,
+            "nonwear_status": [False] * 1440,
+        }
+    )
+
+    metrics = sleep_variables.SleepMetrics(weekend_data)
+
+    assert metrics.weekend_midpoint.to_list() == [
+        datetime.time(hour=1, minute=59, second=30)
+    ], f"Expected weekend midpoint 01:59:30, got {metrics.weekend_midpoint.to_list()}"
+
+
+def test_social_jetlag_missing_data(create_dummy_data: pl.DataFrame) -> None:
+    """Test the social_jetlag attribute when no weekend data is present."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    assert math.isnan(metrics.social_jetlag), (
+        f"Expected nan for social jetlag with no weekend data, "
+        f"got {metrics.social_jetlag}"
+    )
+
+
+@pytest.mark.parametrize(
+    "time1, time2, expected_diff",
+    [
+        (datetime.time(hour=1, minute=0), datetime.time(hour=2, minute=0), 1.0),
+        (datetime.time(hour=23, minute=0), datetime.time(hour=1, minute=0), 2.0),
+    ],
+)
+def test_time_diff(
+    time1: datetime.time, time2: datetime.time, expected_diff: float
+) -> None:
+    """Test the _compute_time_diff function."""
+    diff = sleep_variables._time_difference_abs_hours(time1, time2)
+
+    assert diff == expected_diff, f"Expected {expected_diff}, got {diff}"
