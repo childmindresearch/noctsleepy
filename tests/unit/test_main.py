@@ -20,3 +20,8 @@ def test_compute_sleep_metrics(sample_csv_data: pathlib.Path) -> None:
     assert isinstance(metrics._sleep_onset, pl.Series)
     assert isinstance(metrics._sleep_wakeup, pl.Series)
     assert isinstance(metrics._sleep_midpoint, pl.Series)
+    assert isinstance(metrics._num_awakenings, pl.Series)
+    assert isinstance(metrics._waso_30, float)
+    assert isinstance(metrics._weekday_midpoint, pl.Series)
+    assert isinstance(metrics._weekend_midpoint, pl.Series)
+    assert isinstance(metrics._social_jetlag, float)
