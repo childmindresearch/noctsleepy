@@ -171,3 +171,36 @@ def test_waso_30(create_dummy_data: pl.DataFrame) -> None:
     waso_30 = metrics.waso_30
 
     assert waso_30 == 0.0, f"Expected 0 nights with waso > 30, got {waso_30}"
+
+
+def test_weekday_midpoint(create_dummy_data: pl.DataFrame) -> None:
+    """Test the weekday_midpoint attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    weekday_midpoint = metrics.weekday_midpoint
+
+    assert weekday_midpoint.to_list() == [
+        datetime.time(hour=1, minute=59, second=30)
+    ], f"Expected weekday midpoint 02:00, got {weekday_midpoint.to_list()}"
+
+
+def test_weekend_midpoint(create_dummy_data: pl.DataFrame) -> None:
+    """Test the weekend_midpoint attribute."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    weekend_midpoint = metrics.weekend_midpoint
+
+    assert weekend_midpoint.to_list() == [
+        datetime.time(hour=1, minute=59, second=30)
+    ], f"Expected weekend midpoint 02:00, got {weekend_midpoint.to_list()}"
+
+
+def test_social_jetlag_no_weekend(create_dummy_data: pl.DataFrame) -> None:
+    """Test the social_jetlag attribute when no weekend data is present."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data)
+
+    social_jetlag = metrics.social_jetlag
+
+    assert social_jetlag != social_jetlag, (  # NaN check
+        f"Expected NaN for social jetlag with no weekend data, got {social_jetlag}"
+    )

@@ -10,6 +10,8 @@ import polars as pl
 
 
 class DayOfWeek(enum.IntEnum):
+    """Class to represent days of the week as integers."""
+
     MONDAY = 1
     TUESDAY = 2
     WEDNESDAY = 3
@@ -51,8 +53,8 @@ class SleepMetrics:
 
     night_data: pl.DataFrame
     sampling_time: float = 5.0
-    weekday_list: Iterable[int] = (0, 1, 2, 3, 4)
-    weekend_list: Iterable[int] = (5, 6)
+    weekday_list: Iterable[DayOfWeek | int] = [1, 2, 3, 4, 5]
+    weekend_list: Iterable[DayOfWeek | int] = [6, 7]
     _sleep_duration: Optional[pl.Series] = None
     _time_in_bed: Optional[pl.Series] = None
     _sleep_efficiency: Optional[pl.Series] = None
@@ -96,10 +98,10 @@ class SleepMetrics:
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
-            weekday_list: List of integers (0=Monday, 6=Sunday) representing weekdays.
-                Default is [0, 1, 2, 3, 4] (Monday to Friday).
+            weekday_list: List of integers (1=Monday, 7=Sunday) representing weekdays.
+                Default is [1, 2, 3, 4, 5] (Monday to Friday).
             weekend_list: List of integers representing weekend days
-                Default is [5, 6] (Saturday and Sunday).
+                Default is [6, 7] (Saturday and Sunday).
 
         Raises:
             ValueError: If there are no valid nights in the data.
@@ -236,7 +238,7 @@ class SleepMetrics:
 
     @property
     def waso_30(self) -> float:
-        """Calculate the number of nights where WASO exceeds 30 minutes.
+        """The number of nights where WASO (wake after sleep onset) exceeds 30 minutes.
 
         The result is normalized to a 30-day protocol.
         """
@@ -251,21 +253,13 @@ class SleepMetrics:
         """Calculate the average sleep midpoint on weekdays in HH:MM format."""
         if self._weekday_midpoint is None:
             weekday_data = self.night_data.filter(
-                pl.col("night_date").dt.weekday().is_in(self.weekdays)
+                pl.col("night_date").dt.weekday().is_in(list(self.weekdays))
             )
             if weekday_data.is_empty():
                 self._weekday_midpoint = pl.Series(name="weekday_midpoint", values=[])
             else:
                 weekday_onset = _compute_onset(weekday_data)
-                weekday_wakeup = (
-                    weekday_data.filter(pl.col("spt_periods"))
-                    .group_by("night_date")
-                    .agg(pl.col("time").max().alias("weekday_sleep_wakeup"))
-                    .sort("night_date")
-                    .select("weekday_sleep_wakeup")
-                    .to_series()
-                    .dt.time()
-                )
+                weekday_wakeup = _compute_wakeup(weekday_data)
                 self._weekday_midpoint = pl.Series(
                     name="weekday_midpoint",
                     values=[
@@ -283,29 +277,13 @@ class SleepMetrics:
         """Calculate the average sleep midpoint on weekends in HH:MM format."""
         if self._weekend_midpoint is None:
             weekend_data = self.night_data.filter(
-                pl.col("night_date").dt.weekday().is_in(self.weekend)
+                pl.col("night_date").dt.weekday().is_in(list(self.weekend))
             )
             if weekend_data.is_empty():
                 self._weekend_midpoint = pl.Series(name="weekend_midpoint", values=[])
             else:
-                weekend_onset = (
-                    weekend_data.filter(pl.col("spt_periods"))
-                    .group_by("night_date")
-                    .agg(pl.col("time").min().alias("weekend_sleep_onset"))
-                    .sort("night_date")
-                    .select("weekend_sleep_onset")
-                    .to_series()
-                    .dt.time()
-                )
-                weekend_wakeup = (
-                    weekend_data.filter(pl.col("spt_periods"))
-                    .group_by("night_date")
-                    .agg(pl.col("time").max().alias("weekend_sleep_wakeup"))
-                    .sort("night_date")
-                    .select("weekend_sleep_wakeup")
-                    .to_series()
-                    .dt.time()
-                )
+                weekend_onset = _compute_onset(weekend_data)
+                weekend_wakeup = _compute_wakeup(weekend_data)
                 self._weekend_midpoint = pl.Series(
                     name="weekend_midpoint",
                     values=[
@@ -329,8 +307,10 @@ class SleepMetrics:
             if self.weekday_midpoint.is_empty() or self.weekend_midpoint.is_empty():
                 self._social_jetlag = float("nan")
             else:
-                self._social_jetlag = self.weekend_midpoint - self.weekday_midpoint
-
+                self._social_jetlag = _time_difference_abs_hours(
+                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                )
         return self._social_jetlag
 
     def save_to_json(
@@ -468,3 +448,40 @@ def _compute_onset(df: pl.DataFrame) -> pl.Series:
         .to_series()
         .dt.time()
     )
+
+
+def _compute_wakeup(df: pl.DataFrame) -> pl.Series:
+    return (
+        df.filter(pl.col("spt_periods"))
+        .group_by("night_date")
+        .agg(pl.col("time").max().alias("sleep_wakeup"))
+        .sort("night_date")
+        .select("sleep_wakeup")
+        .to_series()
+        .dt.time()
+    )
+
+
+def _time_difference_abs_hours(time1: datetime.time, time2: datetime.time) -> float:
+    """Calculate absolute difference between two times in hours.
+
+    Converts datetime.time objects to hours since midnight, then finds the absolute
+    difference between the two values.If the difference is greater than 12 hours,
+    it is adjusted to reflect the shorter interval across midnight.
+
+    Args:
+        time1: A datetime.time object.
+        time2: A datetime.time object.
+
+    Returns:
+        The absolute difference between the two times in hours, as a float.
+    """
+    rel_time1 = time1.hour + time1.minute / 60 + time1.second / 3600
+    rel_time2 = time2.hour + time2.minute / 60 + time2.second / 3600
+
+    diff = abs(rel_time2 - rel_time1)
+
+    if diff > 12:
+        diff = 24 - diff
+
+    return diff
