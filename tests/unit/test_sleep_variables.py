@@ -255,6 +255,27 @@ def test_social_jetlag_missing_data(create_dummy_data: pl.DataFrame) -> None:
     )
 
 
+def test_social_jetlag() -> None:
+    """Test the social jetlag attribute."""
+    dummy_date = datetime.datetime(year=2025, month=9, day=5, hour=10, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=15 * i) for i in range(400)
+    ]
+    data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 400,
+            "spt_periods": [True] * 400,
+            "nonwear_status": [False] * 400,
+        }
+    )
+    metrics = sleep_variables.SleepMetrics(data)
+
+    assert metrics.social_jetlag == 0.0, (
+        f"Expected social jetlag = 0.0, got {metrics.social_jetlag}"
+    )
+
+
 @pytest.mark.parametrize(
     "time1, time2, expected_diff",
     [
