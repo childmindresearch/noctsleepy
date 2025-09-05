@@ -308,8 +308,8 @@ class SleepMetrics:
                 self._social_jetlag = float("nan")
             else:
                 self._social_jetlag = _time_difference_abs_hours(
-                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check abovelo0
-                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check abovelo0
+                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
                 )
         return self._social_jetlag
 
