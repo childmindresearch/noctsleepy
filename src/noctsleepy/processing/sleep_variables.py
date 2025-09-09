@@ -26,8 +26,7 @@ class SleepMetrics:
 
     Attributes:
         night_data: Polars DataFrame containing only the filtered nights.
-        sampling_time: The sampling time in seconds,
-            default is 5 seconds (from wristpy default output).
+        sampling_time: The sampling time in seconds.
         sleep_duration: Calculate the total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
         time_in_bed: Calculate the total duration of the SPT window(s) in minutes, this
@@ -52,9 +51,7 @@ class SleepMetrics:
     """
 
     night_data: pl.DataFrame
-    sampling_time: float = 5.0
-    weekday_list: Iterable[DayOfWeek | int] = [1, 2, 3, 4, 5]
-    weekend_list: Iterable[DayOfWeek | int] = [6, 7]
+    sampling_time: float
     _sleep_duration: Optional[pl.Series] = None
     _time_in_bed: Optional[pl.Series] = None
     _sleep_efficiency: Optional[pl.Series] = None
@@ -308,7 +305,7 @@ class SleepMetrics:
                 self._social_jetlag = float("nan")
             else:
                 self._social_jetlag = _time_difference_abs_hours(
-                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check abovelo0
+                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
                     self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
                 )
         return self._social_jetlag
