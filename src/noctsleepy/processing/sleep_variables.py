@@ -1,6 +1,7 @@
 """This module contains functions to aid in computing of sleep metrics."""
 
 import datetime
+import enum
 import json
 import pathlib
 from typing import Iterable, Optional
@@ -8,13 +9,24 @@ from typing import Iterable, Optional
 import polars as pl
 
 
+class DayOfWeek(enum.IntEnum):
+    """Class to represent days of the week as integers."""
+
+    MONDAY = 1
+    TUESDAY = 2
+    WEDNESDAY = 3
+    THURSDAY = 4
+    FRIDAY = 5
+    SATURDAY = 6
+    SUNDAY = 7
+
+
 class SleepMetrics:
     """Class to hold all potential sleep metrics and methods to compute them.
 
     Attributes:
         night_data: Polars DataFrame containing only the filtered nights.
-        sampling_time: The sampling time in seconds,
-            default is 5 seconds (from wristpy default output).
+        sampling_time: The sampling time in seconds.
         sleep_duration: Calculate the total sleep duration in minutes, computed from
             the sum of sustained inactivity bouts within the SPT window.
         time_in_bed: Calculate the total duration of the SPT window(s) in minutes, this
@@ -30,10 +42,16 @@ class SleepMetrics:
         num_awakenings: Calculate the number of awakenings during the sleep period.
         waso_30: Calculate the number of nights where WASO exceeds 30 minutes,
             normalized to a 30-day protocol.
+        weekday_midpoint: Average sleep midpoint on weekdays (defaults to Monday -
+            Friday night) in HH:MM format.
+        weekend_midpoint: Average sleep midpoint on weekends (defaults to Saturday -
+            Sunday night) in HH:MM format.
+        social_jetlag: Calculate the social jetlag, defined as the absolute difference
+            between the weekend and weekday sleep midpoints, in hours.
     """
 
     night_data: pl.DataFrame
-    sampling_time: float = 5.0
+    sampling_time: float
     _sleep_duration: Optional[pl.Series] = None
     _time_in_bed: Optional[pl.Series] = None
     _sleep_efficiency: Optional[pl.Series] = None
@@ -54,6 +72,17 @@ class SleepMetrics:
         data: pl.DataFrame,
         night_start: datetime.time = datetime.time(hour=20, minute=0),
         night_end: datetime.time = datetime.time(hour=8, minute=0),
+        weekday_list: Iterable[DayOfWeek | int] = [
+            DayOfWeek.MONDAY,
+            DayOfWeek.TUESDAY,
+            DayOfWeek.WEDNESDAY,
+            DayOfWeek.THURSDAY,
+            DayOfWeek.FRIDAY,
+        ],
+        weekend_list: Iterable[DayOfWeek | int] = [
+            DayOfWeek.SATURDAY,
+            DayOfWeek.SUNDAY,
+        ],
         nw_threshold: float = 0.2,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
@@ -66,6 +95,10 @@ class SleepMetrics:
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
                 considered valid. Expressed as a fraction (0.0 to 1.0).
+            weekday_list: List of integers (1=Monday, 7=Sunday) representing weekdays.
+                Default is [1, 2, 3, 4, 5] (Monday to Friday).
+            weekend_list: List of integers representing weekend days
+                Default is [6, 7] (Saturday and Sunday).
 
         Raises:
             ValueError: If there are no valid nights in the data.
@@ -74,6 +107,8 @@ class SleepMetrics:
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
         self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
+        self.weekdays = weekday_list
+        self.weekend = weekend_list
 
     @property
     def sleep_duration(self) -> pl.Series:
@@ -142,15 +177,7 @@ class SleepMetrics:
         within the nocturnal window.
         """
         if self._sleep_onset is None:
-            self._sleep_onset = (
-                self.night_data.filter(pl.col("spt_periods"))
-                .group_by("night_date")
-                .agg(pl.col("time").min().alias("sleep_onset"))
-                .sort("night_date")
-                .select("sleep_onset")
-                .to_series()
-                .dt.time()
-            )
+            self._sleep_onset = _compute_onset(self.night_data)
         return self._sleep_onset
 
     @property
@@ -208,7 +235,7 @@ class SleepMetrics:
 
     @property
     def waso_30(self) -> float:
-        """Calculate the number of nights where WASO exceeds 30 minutes.
+        """The number of nights where WASO (wake after sleep onset) exceeds 30 minutes.
 
         The result is normalized to a 30-day protocol.
         """
@@ -217,6 +244,71 @@ class SleepMetrics:
             self._waso_30 = ((self.waso > 30).sum() / num_nights) * 30
 
         return self._waso_30
+
+    @property
+    def weekday_midpoint(self) -> pl.Series:
+        """Calculate the average sleep midpoint on weekdays in HH:MM format."""
+        if self._weekday_midpoint is None:
+            weekday_data = self.night_data.filter(
+                pl.col("night_date").dt.weekday().is_in(list(self.weekdays))
+            )
+            if weekday_data.is_empty():
+                self._weekday_midpoint = pl.Series(name="weekday_midpoint", values=[])
+            else:
+                weekday_onset = _compute_onset(weekday_data)
+                weekday_wakeup = _compute_wakeup(weekday_data)
+                self._weekday_midpoint = pl.Series(
+                    name="weekday_midpoint",
+                    values=[
+                        _get_night_midpoint(start, end)
+                        for start, end in zip(
+                            weekday_onset, weekday_wakeup, strict=True
+                        )
+                    ],
+                )
+
+        return self._weekday_midpoint
+
+    @property
+    def weekend_midpoint(self) -> pl.Series:
+        """Calculate the average sleep midpoint on weekends in HH:MM format."""
+        if self._weekend_midpoint is None:
+            weekend_data = self.night_data.filter(
+                pl.col("night_date").dt.weekday().is_in(list(self.weekend))
+            )
+            if weekend_data.is_empty():
+                self._weekend_midpoint = pl.Series(name="weekend_midpoint", values=[])
+            else:
+                weekend_onset = _compute_onset(weekend_data)
+                weekend_wakeup = _compute_wakeup(weekend_data)
+                self._weekend_midpoint = pl.Series(
+                    name="weekend_midpoint",
+                    values=[
+                        _get_night_midpoint(start, end)
+                        for start, end in zip(
+                            weekend_onset, weekend_wakeup, strict=True
+                        )
+                    ],
+                )
+
+        return self._weekend_midpoint
+
+    @property
+    def social_jetlag(self) -> float:
+        """Calculate the social jetlag in hours.
+
+        Defined as the absolute difference between the weekend and weekday sleep
+        midpoints.
+        """
+        if self._social_jetlag is None:
+            if self.weekday_midpoint.is_empty() or self.weekend_midpoint.is_empty():
+                self._social_jetlag = float("nan")
+            else:
+                self._social_jetlag = _time_difference_abs_hours(
+                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                )
+        return self._social_jetlag
 
     def save_to_json(
         self, filename: pathlib.Path, requested_metrics: Iterable[str]
@@ -341,3 +433,52 @@ def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.ti
     midpoint_minute = (midpoint_s % 3600) // 60
     midpoint_second = midpoint_s % 60
     return datetime.time(midpoint_hour, midpoint_minute, midpoint_second)
+
+
+def _compute_onset(df: pl.DataFrame) -> pl.Series:
+    return (
+        df.filter(pl.col("spt_periods"))
+        .group_by("night_date")
+        .agg(pl.col("time").min().alias("sleep_onset"))
+        .sort("night_date")
+        .select("sleep_onset")
+        .to_series()
+        .dt.time()
+    )
+
+
+def _compute_wakeup(df: pl.DataFrame) -> pl.Series:
+    return (
+        df.filter(pl.col("spt_periods"))
+        .group_by("night_date")
+        .agg(pl.col("time").max().alias("sleep_wakeup"))
+        .sort("night_date")
+        .select("sleep_wakeup")
+        .to_series()
+        .dt.time()
+    )
+
+
+def _time_difference_abs_hours(time1: datetime.time, time2: datetime.time) -> float:
+    """Calculate absolute difference between two times in hours.
+
+    Converts datetime.time objects to hours since midnight, then finds the absolute
+    difference between the two values.If the difference is greater than 12 hours,
+    it is adjusted to reflect the shorter interval across midnight.
+
+    Args:
+        time1: A datetime.time object.
+        time2: A datetime.time object.
+
+    Returns:
+        The absolute difference between the two times in hours, as a float.
+    """
+    rel_time1 = time1.hour + time1.minute / 60 + time1.second / 3600
+    rel_time2 = time2.hour + time2.minute / 60 + time2.second / 3600
+
+    diff = abs(rel_time2 - rel_time1)
+
+    if diff > 12:
+        diff = 24 - diff
+
+    return diff

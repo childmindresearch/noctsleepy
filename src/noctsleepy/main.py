@@ -17,6 +17,9 @@ METRIC_MAPPING: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
         "sleep_onset",
         "sleep_wakeup",
         "sleep_midpoint",
+        "weekday_midpoint",
+        "weekend_midpoint",
+        "social_jetlag",
     ],
 }
 
@@ -57,7 +60,10 @@ def compute_sleep_metrics(
 
     data = readers.read_wristpy_data(pathlib.Path(input_data))
     sleep_data = sleep_variables.SleepMetrics(
-        data, night_start, night_end, nw_threshold
+        data=data,
+        night_start=night_start,
+        night_end=night_end,
+        nw_threshold=nw_threshold,
     )
 
     if selected_metrics is None:
