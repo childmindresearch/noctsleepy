@@ -116,8 +116,8 @@ def compute_metrics(
     """
     main.compute_sleep_metrics(
         input_data=input_data,
-        night_start=night_start,
-        night_end=night_end,
+        night_start=night_start,  # type: ignore[arg-type] #Covered by parse_time callback
+        night_end=night_end,  # type: ignore[arg-type] #Covered by parse_time callback
         nw_threshold=nw_threshold,
         selected_metrics=[metric.value for metric in selected_metrics]
         if selected_metrics is not None
