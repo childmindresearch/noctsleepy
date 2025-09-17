@@ -3,7 +3,7 @@
 import datetime
 import pathlib
 from enum import Enum
-from typing import Annotated, List, Optional
+from typing import Annotated, List
 
 import typer
 
@@ -16,6 +16,28 @@ app = typer.Typer(
     epilog="Please report issues at "
     "https://github.com/childmindresearch/noctsleepy/issues.",
 )
+
+
+def parse_time(value: str) -> datetime.time:
+    """Parse time string in HH:MM format to datetime.time object.
+
+    Args:
+        value: Time string in HH:MM format.
+
+    Returns:
+        A datetime.time object.
+
+    Raises:
+        typer.BadParameter: If the input string is not in the correct format.
+    """
+    if value is None:
+        return None
+    try:
+        return datetime.datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        raise typer.BadParameter(
+            f"Invalid time format: {value}. Expected HH:MM format (e.g., 20:00, 08:30)"
+        )
 
 
 class SleepMetricCategory(str, Enum):
@@ -44,29 +66,36 @@ def compute_metrics(
         ),
     ],
     night_start: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--night-start",
             "-s",
             help="Start time of the nocturnal interval in HH:MM format. "
             "If not provided, defaults to 20:00.",
+            callback=lambda value: parse_time(value) if value else None,
         ),
     ] = None,
     night_end: Annotated[
-        str,
+        str | None,
         typer.Option(
             "--night-end",
             "-e",
-            help="End time of the nocturnal interval in HH:MM format. Defaults to 08:00.",
+            help="End time of the nocturnal interval in HH:MM format. "
+            "If not provided, defaults to 08:00.",
+            callback=lambda value: parse_time(value) if value else None,
         ),
     ] = None,
-    nw_threshold: float = typer.Option(
-        0.2,
-        "--nw-threshold",
-        help="Non-wear threshold (0.0-1.0), below which a night is considered valid.",
-        min=0.0,
-        max=1.0,
-    ),
+    nw_threshold: Annotated[
+        float,
+        typer.Option(
+            "--nw-threshold",
+            "-t",
+            help="Non-wear threshold fraction (0.0-1.0), "
+            "below which a night is considered valid.",
+            min=0.0,
+            max=1.0,
+        ),
+    ] = 0.2,
     selected_metrics: Annotated[
         List[SleepMetricCategory] | None,
         typer.Option(
@@ -76,6 +105,8 @@ def compute_metrics(
             "If not specified, all metrics are computed. "
             "Multiple categories can be specified by repeating the option. "
             "E.g., --metrics sleep_duration --metrics sleep_timing. ",
+            case_sensitive=False,
+            show_choices=True,
         ),
     ] = None,
 ) -> None:
@@ -85,51 +116,15 @@ def compute_metrics(
     including sleep duration, continuity, and timing measures. Results are
     saved as a JSON file in the same directory as the input file.
     """
-    # Parse time strings if provided
-    night_start_time = None
-    if night_start:
-        try:
-            hour, minute = map(int, night_start.split(":"))
-            night_start_time = datetime.time(hour=hour, minute=minute)
-        except ValueError:
-            typer.echo(
-                f"Error: Invalid time format for night_start: {night_start}. Use HH:MM format."
-            )
-            raise typer.Exit(1)
-
-    night_end_time = None
-    if night_end:
-        try:
-            hour, minute = map(int, night_end.split(":"))
-            night_end_time = datetime.time(hour=hour, minute=minute)
-        except ValueError:
-            typer.echo(
-                f"Error: Invalid time format for night_end: {night_end}. Use HH:MM format."
-            )
-            raise typer.Exit(1)
-
-    # Convert enum values to strings if provided
-    metrics_list = None
-    if selected_metrics:
-        metrics_list = [metric.value for metric in selected_metrics]
-
-    try:
-        # Call the main computation function
-        sleep_metrics = main.compute_sleep_metrics(
-            input_data=input_data,
-            night_start=night_start_time,
-            night_end=night_end_time,
-            nw_threshold=nw_threshold,
-            selected_metrics=metrics_list,
-        )
-
-        output_file = input_data.with_name(input_data.stem + "_sleep_metrics.json")
-        typer.echo(f"✅ Sleep metrics computed successfully!")
-        typer.echo(f"📄 Results saved to: {output_file}")
-
-    except Exception as e:
-        typer.echo(f"❌ Error computing sleep metrics: {str(e)}")
-        raise typer.Exit(1)
+    main.compute_sleep_metrics(
+        input_data=input_data,
+        night_start=night_start,
+        night_end=night_end,
+        nw_threshold=nw_threshold,
+        selected_metrics=[metric.value for metric in selected_metrics]
+        if selected_metrics is not None
+        else None,
+    )
 
 
 if __name__ == "__main__":
