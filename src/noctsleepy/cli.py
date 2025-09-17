@@ -3,7 +3,7 @@
 import datetime
 import pathlib
 from enum import Enum
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 import typer
 
@@ -29,28 +29,37 @@ class SleepMetricCategory(str, Enum):
 @app.command(
     name="compute-metrics",
     help="Compute sleep metrics from actigraphy data and save results as JSON.",
-    epilog="Results are automatically saved as a JSON file in the same directory as the input file.",
+    epilog=(
+        "Results are automatically saved as a JSON file "
+        "in the same directory as the input file."
+    ),
 )
 def compute_metrics(
-    input_data: pathlib.Path = typer.Argument(
-        ...,
-        exists=True,
-        file_okay=True,
-        dir_okay=False,
-        readable=True,
-        resolve_path=True,
-        help="Path to the input data file (CSV or Parquet).",
-    ),
-    night_start: Optional[str] = typer.Option(
-        None,
-        "--night-start",
-        help="Start time of the nocturnal interval in HH:MM format. Defaults to 20:00.",
-    ),
-    night_end: Optional[str] = typer.Option(
-        None,
-        "--night-end",
-        help="End time of the nocturnal interval in HH:MM format. Defaults to 08:00.",
-    ),
+    input_data: Annotated[
+        pathlib.Path,
+        typer.Argument(
+            exists=True,
+            resolve_path=True,
+            help="Path to the input data file (CSV or Parquet).",
+        ),
+    ],
+    night_start: Annotated[
+        str,
+        typer.Option(
+            "--night-start",
+            "-s",
+            help="Start time of the nocturnal interval in HH:MM format. "
+            "If not provided, defaults to 20:00.",
+        ),
+    ] = None,
+    night_end: Annotated[
+        str,
+        typer.Option(
+            "--night-end",
+            "-e",
+            help="End time of the nocturnal interval in HH:MM format. Defaults to 08:00.",
+        ),
+    ] = None,
     nw_threshold: float = typer.Option(
         0.2,
         "--nw-threshold",
@@ -58,11 +67,17 @@ def compute_metrics(
         min=0.0,
         max=1.0,
     ),
-    selected_metrics: Optional[List[SleepMetricCategory]] = typer.Option(
-        None,
-        "--metrics",
-        help="Specific metric categories to compute. If not specified, all metrics are computed.",
-    ),
+    selected_metrics: Annotated[
+        List[SleepMetricCategory] | None,
+        typer.Option(
+            "--metrics",
+            "-m",
+            help="Specific metric categories to compute. "
+            "If not specified, all metrics are computed. "
+            "Multiple categories can be specified by repeating the option. "
+            "E.g., --metrics sleep_duration --metrics sleep_timing. ",
+        ),
+    ] = None,
 ) -> None:
     """Compute sleep metrics from actigraphy data.
 
@@ -115,3 +130,7 @@ def compute_metrics(
     except Exception as e:
         typer.echo(f"❌ Error computing sleep metrics: {str(e)}")
         raise typer.Exit(1)
+
+
+if __name__ == "__main__":
+    app()
