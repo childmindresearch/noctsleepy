@@ -30,8 +30,6 @@ def parse_time(value: str) -> datetime.time:
     Raises:
         typer.BadParameter: If the input string is not in the correct format.
     """
-    if value is None:
-        return None
     try:
         return datetime.datetime.strptime(value, "%H:%M").time()
     except ValueError:
