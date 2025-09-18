@@ -5,6 +5,7 @@ import pathlib
 
 import pytest
 import pytest_mock
+import typer
 from typer import testing
 
 from noctsleepy import cli, main
@@ -72,3 +73,11 @@ def test_main_custom_params(
         nw_threshold=0.3,
         selected_metrics=["sleep_duration", "sleep_timing"],
     )
+
+
+def test_parse_time_bad_input() -> None:
+    """Test the parse_time function with bad input."""
+    with pytest.raises(
+        typer.BadParameter,
+    ):
+        cli.parse_time("20-00")

@@ -34,7 +34,7 @@ def parse_time(value: str) -> datetime.time:
         return datetime.datetime.strptime(value, "%H:%M").time()
     except ValueError:
         raise typer.BadParameter(
-            f"Invalid time format: {value}. Expected HH:MM format (e.g., 20:00, 08:30)"
+            f"Invalid time format: {value}. Expected HH:MM format (e.g., 20:00, 08:30)."
         )
 
 
