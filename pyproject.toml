@@ -13,6 +13,8 @@ dependencies = [
     "polars>=1.31.0",
     "typer>=0.17.4",
 ]
+[project.scripts]
+noctsleepy = "noctsleepy.__main__:run_main"
 
 [dependency-groups]
 dev = [
