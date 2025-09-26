@@ -123,7 +123,3 @@ def compute_metrics(
         if selected_metrics is not None
         else None,
     )
-
-
-if __name__ == "__main__":
-    app()
