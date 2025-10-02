@@ -60,7 +60,10 @@ def compute_metrics(
         typer.Argument(
             exists=True,
             resolve_path=True,
-            help="Path to the input data file (CSV or Parquet).",
+            help="Path to the input data file (CSV or Parquet). "
+            "This file should contain data from processed actigraphy devices. "
+            "Ideally, the raw actigraphy data was processed with `wristpy`, "
+            "or at the minimum, must have a compatible output format.",
         ),
     ],
     night_start: Annotated[

@@ -33,6 +33,10 @@ def compute_sleep_metrics(
 ) -> sleep_variables.SleepMetrics:
     """Compute sleep metrics from the provided data file.
 
+    The input data file contains time-series data from processed actigraphy devices.
+    Ideally, the raw actigraphy data is processed with `wristpy`, or at the minimum
+    must have a compatible output format.
+
     Users can specify the start and end times of the night to filter the data,
     a non-wear threshold, and the metrics they want to compute.
 
