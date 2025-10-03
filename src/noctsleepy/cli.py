@@ -67,7 +67,7 @@ def compute_metrics(
         ),
     ],
     night_start: Annotated[
-        str | None,
+        str,
         typer.Option(
             "--night-start",
             "-s",
@@ -75,9 +75,9 @@ def compute_metrics(
             "If not provided, defaults to 20:00.",
             callback=lambda value: parse_time(value) if value else None,
         ),
-    ] = None,
+    ] = "20:00",
     night_end: Annotated[
-        str | None,
+        str,
         typer.Option(
             "--night-end",
             "-e",
@@ -85,7 +85,7 @@ def compute_metrics(
             "If not provided, defaults to 08:00.",
             callback=lambda value: parse_time(value) if value else None,
         ),
-    ] = None,
+    ] = "08:00",
     nw_threshold: Annotated[
         float,
         typer.Option(
