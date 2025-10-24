@@ -4,6 +4,7 @@ import datetime
 import enum
 import json
 import pathlib
+import zoneinfo
 from typing import Iterable, Optional
 
 import polars as pl
@@ -70,6 +71,7 @@ class SleepMetrics:
     def __init__(
         self,
         data: pl.DataFrame,
+        timezone: str,
         night_start: datetime.time = datetime.time(hour=20, minute=0),
         night_end: datetime.time = datetime.time(hour=8, minute=0),
         weekday_list: Iterable[DayOfWeek | int] = [
@@ -91,6 +93,7 @@ class SleepMetrics:
 
         Args:
             data: Polars DataFrame containing the processed actigraphy data.
+            timezone: The timezone of the input data. User defined based on location.
             night_start: The start time of the nocturnal interval.
             night_end: The end time of the nocturnal interval.
             nw_threshold: A threshold for the non-wear status, below which a night is
@@ -103,7 +106,17 @@ class SleepMetrics:
         Raises:
             ValueError: If there are no valid nights in the data.
         """
-        self.night_data = _filter_nights(data, night_start, night_end, nw_threshold)
+        self.timezone = timezone
+        data_utc = _convert_to_utc(data, timezone)
+        if data_utc["utc_offset_hours"].n_unique() > 1:
+            raise ValueError(
+                "Data contains multiple timezones or daylight saving changes. "
+                "Please ensure all timestamps are in the same timezone."
+            )
+        offset_hours = data_utc["utc_offset_hours"].unique()[0]
+        self.night_data = _filter_nights(
+            data_utc, night_start + offset_hours, night_end + offset_hours, nw_threshold
+        )
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
         self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
@@ -409,6 +422,35 @@ def _filter_nights(
     ).select(["night_date"])
 
     return nocturnal_sleep.join(valid_nights, on="night_date").sort("time")
+
+
+def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
+    """Convert local timestamps to UTC using the stored timezone.
+
+    Args:
+        data: Polars DataFrame with a 'time' column containing local timestamps.
+        timezone: The timezone of the input data. User defined based on location.
+
+    Returns:
+        DataFrame with 'time' column converted to UTC. Also adds a column
+            'utc_offset_hours' indicating the offset from UTC in hours.
+    """
+    data_with_tz = data.with_columns(
+        [pl.col("time").dt.replace_time_zone(timezone).alias("time_local")]
+    )
+
+    return data_with_tz.with_columns(
+        [
+            pl.col("time_local").dt.convert_time_zone("UTC").alias("time"),
+            (
+                (
+                    pl.col("time_local").dt.timestamp("ms")
+                    - pl.col("time").dt.timestamp("ms")
+                )
+                / 3_600_000
+            ).alias("utc_offset_hours"),
+        ]
+    ).drop("time_local")
 
 
 def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.time:
