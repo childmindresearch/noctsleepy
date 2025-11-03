@@ -33,6 +33,7 @@ def test_main_default(
     assert result.exit_code == 0, f"CLI exited with error: {result.output}"
     mock_compute.assert_called_once_with(
         input_data=sample_csv_data,
+        timezone="UTC",
         night_start=datetime.time(hour=20, minute=0),
         night_end=datetime.time(hour=8, minute=0),
         nw_threshold=0.2,
@@ -68,6 +69,7 @@ def test_main_custom_params(
     assert result.exit_code == 0, f"CLI exited with error: {result.output}"
     mock_compute.assert_called_once_with(
         input_data=sample_csv_data,
+        timezone="UTC",
         night_start=datetime.time(hour=21, minute=0),
         night_end=datetime.time(hour=7, minute=0),
         nw_threshold=0.3,
