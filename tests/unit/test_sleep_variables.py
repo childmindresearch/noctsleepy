@@ -31,9 +31,10 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_start = datetime.time(hour=20, minute=0)
     night_end = datetime.time(hour=8, minute=0)
     nw_threshold = 0.2
+    timezone = "UTC"
 
     valid_nights = sleep_variables._filter_nights(
-        create_dummy_data, night_start, night_end, nw_threshold
+        create_dummy_data, night_start, night_end, nw_threshold, timezone
     )
     time_check = (
         (valid_nights["time"].dt.time() >= night_start)
@@ -51,9 +52,10 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     night_start = datetime.time(hour=20, minute=0)
     night_end = datetime.time(hour=23, minute=0)
     nw_threshold = 0.2
+    timezone = "UTC"
 
     valid_nights = sleep_variables._filter_nights(
-        create_dummy_data, night_start, night_end, nw_threshold
+        create_dummy_data, night_start, night_end, nw_threshold, timezone
     )
     time_check = (
         (valid_nights["time"].dt.time() >= night_start)
@@ -295,9 +297,9 @@ def test_time_diff(
 @pytest.mark.parametrize(
     "timezone, expected_difference",
     [
-        ("America/New_York", 4.0),
-        ("Europe/London", -1.0),
-        ("Asia/Tokyo", -9.0),
+        ("America/New_York", -4.0),
+        ("Europe/London", 1.0),
+        ("Asia/Tokyo", 9.0),
     ],
 )
 def test_utc_conversion(
@@ -315,3 +317,60 @@ def test_utc_conversion(
         f"Expected time difference of {expected_difference}, "
         f"got {data_utc['utc_offset_hours'].unique()}"
     )
+
+
+def test_dst_transition() -> None:
+    """Test that the DST transition is handled correctly."""
+    dummy_date = datetime.datetime(year=2025, month=11, day=1, hour=17, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=10 * i) for i in range(288)
+    ]
+    data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * len(dummy_datetime_list),
+            "spt_periods": [True] * len(dummy_datetime_list),
+            "nonwear_status": [False] * len(dummy_datetime_list),
+        }
+    )
+    timezone = "America/New_York"
+    night_start = datetime.time(20, 0)
+    night_end = datetime.time(8, 0)
+    nw_threshold = 0.2
+
+    result = sleep_variables._filter_nights(
+        data, night_start, night_end, nw_threshold, timezone
+    )
+    assert result["night_date"].unique().len() == 2, (
+        f"Expected 2 valid nights, got {result['night_date'].unique().len()}"
+    )
+    assert len(result["time"]) == 144
+
+
+def test_dst_london_forward() -> None:
+    """Test that the DST forward transition is handled correctly."""
+    start_time = datetime.datetime(2025, 3, 29, 20, 0)
+    all_times = [start_time + datetime.timedelta(minutes=10 * i) for i in range(36 * 6)]
+
+    dummy_data = pl.DataFrame(
+        {
+            "time": all_times,
+            "sib_periods": [True] * len(all_times),
+            "spt_periods": [True] * len(all_times),
+            "nonwear_status": [False] * len(all_times),
+        }
+    )
+
+    timezone = "Europe/London"
+    night_start = datetime.time(20, 0)
+    night_end = datetime.time(8, 0)
+    nw_threshold = 0.2
+
+    result = sleep_variables._filter_nights(
+        dummy_data, night_start, night_end, nw_threshold, timezone
+    )
+
+    assert result["night_date"].unique().len() == 2, (
+        f"Expected 2 valid nights, got {result['night_date'].unique().len()}"
+    )
+    assert len(result["time"]) == 138

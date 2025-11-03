@@ -4,7 +4,6 @@ import datetime
 import enum
 import json
 import pathlib
-import zoneinfo
 from typing import Iterable, Optional
 
 import polars as pl
@@ -106,16 +105,8 @@ class SleepMetrics:
         Raises:
             ValueError: If there are no valid nights in the data.
         """
-        self.timezone = timezone
-        data_utc = _convert_to_utc(data, timezone)
-        if data_utc["utc_offset_hours"].n_unique() > 1:
-            raise ValueError(
-                "Data contains multiple timezones or daylight saving changes. "
-                "Please ensure all timestamps are in the same timezone."
-            )
-        offset_hours = data_utc["utc_offset_hours"].unique()[0]
         self.night_data = _filter_nights(
-            data_utc, night_start + offset_hours, night_end + offset_hours, nw_threshold
+            data, night_start, night_end, nw_threshold, timezone
         )
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
@@ -357,13 +348,16 @@ def _filter_nights(
     night_start: datetime.time,
     night_end: datetime.time,
     nw_threshold: float,
+    timezone: str,
 ) -> pl.DataFrame:
     """Find valid nights in the processed actigraphy data.
 
     A night is defined by the nocturnal interval (default is [20:00 - 08:00) ).
+    Timestamps are first converted to UTC based on the provided timezone.
+    The UTC conversion also keeps track of the offset from the initial local timezone.
+    This offset is used to shift the nocturnal window hours.
     The processed data is filtered to only include this window and then valid nights
-    are chosen when a night has a non-wear percentage
-    below the specified threshold.
+    are chosen when a night has a non-wear percentage below the specified threshold.
 
     Args:
         data: Polars dataframe containing the processed actigraphy data,
@@ -374,14 +368,33 @@ def _filter_nights(
             Default is 08:00 (8 AM).
         nw_threshold: A threshold for the non-wear status, below which a night is
             considered valid. Expressed as a percentage (0.0 to 1.0).
+        timezone: The timezone of the input data. User defined based on location.
 
     Returns:
         A Polars DataFrame containing only the valid nights.
+
     """
+    night_start_minutes = night_start.hour * 60 + night_start.minute
+    night_end_minutes = night_end.hour * 60 + night_end.minute
+    utc_data = _convert_to_utc(data, timezone)
+    utc_data = utc_data.with_columns(
+        [
+            (
+                (
+                    pl.col("time").dt.hour().cast(pl.Int32) * 60
+                    + pl.col("time").dt.minute().cast(pl.Int32)
+                    + (pl.col("utc_offset_hours") * 60)
+                )
+                % 1440
+            ).alias("local_time_minutes"),
+            pl.lit(night_start_minutes).alias("night_start_minutes"),
+            pl.lit(night_end_minutes).alias("night_end_minutes"),
+        ]
+    )
     if night_start > night_end:
-        nocturnal_sleep = data.filter(
-            (pl.col("time").dt.time() >= night_start)
-            | (pl.col("time").dt.time() < night_end)
+        nocturnal_sleep = utc_data.filter(
+            (pl.col("local_time_minutes") >= pl.col("night_start_minutes"))
+            | (pl.col("local_time_minutes") < pl.col("night_end_minutes"))
         )
         nocturnal_sleep = nocturnal_sleep.with_columns(
             [
@@ -392,9 +405,9 @@ def _filter_nights(
             ]
         )
     else:
-        nocturnal_sleep = data.filter(
-            (pl.col("time").dt.time() >= night_start)
-            & (pl.col("time").dt.time() < night_end)
+        nocturnal_sleep = utc_data.filter(
+            (pl.col("local_time_minutes") >= pl.col("night_start_minutes"))
+            & (pl.col("local_time_minutes") < pl.col("night_end_minutes"))
         )
         nocturnal_sleep = nocturnal_sleep.with_columns(
             pl.col("time").dt.date().alias("night_date")
@@ -421,7 +434,11 @@ def _filter_nights(
         pl.col("non_wear_percentage") <= nw_threshold
     ).select(["night_date"])
 
-    return nocturnal_sleep.join(valid_nights, on="night_date").sort("time")
+    return (
+        nocturnal_sleep.join(valid_nights, on="night_date")
+        .sort("time")
+        .drop(["local_time_minutes", "night_start_minutes", "night_end_minutes"])
+    )
 
 
 def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
@@ -436,7 +453,11 @@ def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
             'utc_offset_hours' indicating the offset from UTC in hours.
     """
     data_with_tz = data.with_columns(
-        [pl.col("time").dt.replace_time_zone(timezone).alias("time_local")]
+        [
+            pl.col("time")
+            .dt.replace_time_zone(timezone, ambiguous="earliest", non_existent="null")
+            .alias("time_local")
+        ]
     )
 
     return data_with_tz.with_columns(
@@ -444,8 +465,8 @@ def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
             pl.col("time_local").dt.convert_time_zone("UTC").alias("time"),
             (
                 (
-                    pl.col("time_local").dt.timestamp("ms")
-                    - pl.col("time").dt.timestamp("ms")
+                    pl.col("time").dt.timestamp("ms")
+                    - pl.col("time_local").dt.timestamp("ms")
                 )
                 / 3_600_000
             ).alias("utc_offset_hours"),

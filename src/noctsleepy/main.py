@@ -26,6 +26,7 @@ METRIC_MAPPING: dict[SLEEP_METRIC_CATEGORIES, list[str]] = {
 
 def compute_sleep_metrics(
     input_data: pathlib.Path | str,
+    timezone: str,
     night_start: Optional[datetime.time] = None,
     night_end: Optional[datetime.time] = None,
     nw_threshold: float = 0.2,
@@ -44,6 +45,7 @@ def compute_sleep_metrics(
 
     Args:
         input_data: Path to the input data file (CSV or Parquet).
+        timezone: Timezone aware location of the input data.
         night_start: Start time of the nocturnal interval. If None, defaults to 20:00.
         night_end: End time of the nocturnal interval.  If None, defaults to 08:00.
         nw_threshold: Non-wear threshold, below which a night is considered valid.
@@ -68,6 +70,7 @@ def compute_sleep_metrics(
         night_start=night_start,
         night_end=night_end,
         nw_threshold=nw_threshold,
+        timezone=timezone,
     )
 
     if selected_metrics is None:

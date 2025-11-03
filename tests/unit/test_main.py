@@ -10,7 +10,7 @@ from noctsleepy.processing import sleep_variables
 
 def test_compute_sleep_metrics(sample_csv_data: pathlib.Path) -> None:
     """Test the compute_sleep_metrics function with a sample CSV file."""
-    metrics = compute_sleep_metrics(sample_csv_data)
+    metrics = compute_sleep_metrics(sample_csv_data, timezone="America/New_York")
 
     assert isinstance(metrics, sleep_variables.SleepMetrics)
     assert isinstance(metrics._sleep_duration, pl.Series)
