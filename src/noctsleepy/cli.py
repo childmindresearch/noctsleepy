@@ -38,12 +38,49 @@ def parse_time(value: str) -> datetime.time:
         )
 
 
+def parse_timezone(timezone_value: str) -> str:
+    """Parse timezone location string to IANA timezone identifier.
+
+    Args:
+        timezone_value: Timezone location string (e.g., 'us_eastern', 'europe_berlin').
+
+    Returns:
+        IANA timezone identifier string.
+
+    Raises:
+        typer.BadParameter: If the timezone location is not recognized.
+    """
+    try:
+        return CommonTimezones[timezone_value.lower()].value
+    except KeyError:
+        raise typer.BadParameter(
+            f"Invalid timezone: {timezone_value}. See help for valid options."
+        )
+
+
 class SleepMetricCategory(str, Enum):
     """Sleep metric categories."""
 
     sleep_duration = "sleep_duration"
     sleep_continuity = "sleep_continuity"
     sleep_timing = "sleep_timing"
+
+
+class CommonTimezones(str, Enum):
+    """Common timezone choices."""
+
+    us_eastern = "America/New_York"
+    us_central = "America/Chicago"
+    us_mountain = "America/Denver"
+    us_pacific = "America/Los_Angeles"
+    us_alaska = "America/Anchorage"
+    us_hawaii = "Pacific/Honolulu"
+    europe_london = "Europe/London"
+    europe_paris = "Europe/Paris"
+    europe_berlin = "Europe/Berlin"
+    asia_tokyo = "Asia/Tokyo"
+    asia_shanghai = "Asia/Shanghai"
+    asia_kolkata = "Asia/Kolkata"
 
 
 @app.command(
@@ -64,6 +101,16 @@ def compute_metrics(
             "This file should contain data from processed actigraphy devices. "
             "Ideally, the raw actigraphy data was processed with `wristpy`, "
             "or at the minimum, must have a compatible output format.",
+        ),
+    ],
+    timezone: Annotated[
+        str,
+        typer.Argument(
+            help="Geographic timezone location for the data collection site. "
+            "Used for DST-aware processing. "
+            f"Valid options: {', '.join([tz.name for tz in CommonTimezones])}.",
+            show_choices=True,
+            callback=lambda value: parse_timezone(value),
         ),
     ],
     night_start: Annotated[
@@ -119,7 +166,7 @@ def compute_metrics(
     """
     main.compute_sleep_metrics(
         input_data=input_data,
-        timezone="UTC",
+        timezone=timezone,
         night_start=night_start,  # type: ignore[arg-type] #Covered by parse_time callback
         night_end=night_end,  # type: ignore[arg-type] #Covered by parse_time callback
         nw_threshold=nw_threshold,

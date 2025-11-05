@@ -4,13 +4,13 @@ import pathlib
 
 import polars as pl
 
-from noctsleepy.main import compute_sleep_metrics
+from noctsleepy import main
 from noctsleepy.processing import sleep_variables
 
 
 def test_compute_sleep_metrics(sample_csv_data: pathlib.Path) -> None:
     """Test the compute_sleep_metrics function with a sample CSV file."""
-    metrics = compute_sleep_metrics(sample_csv_data, timezone="America/New_York")
+    metrics = main.compute_sleep_metrics(sample_csv_data, timezone="America/New_York")
 
     assert isinstance(metrics, sleep_variables.SleepMetrics)
     assert isinstance(metrics._sleep_duration, pl.Series)
