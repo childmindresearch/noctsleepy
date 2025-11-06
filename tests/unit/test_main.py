@@ -3,6 +3,7 @@
 import pathlib
 
 import polars as pl
+import pytest
 
 from noctsleepy import main
 from noctsleepy.processing import sleep_variables
@@ -25,3 +26,9 @@ def test_compute_sleep_metrics(sample_csv_data: pathlib.Path) -> None:
     assert isinstance(metrics._weekday_midpoint, pl.Series)
     assert isinstance(metrics._weekend_midpoint, pl.Series)
     assert isinstance(metrics._social_jetlag, float)
+
+
+def test_bad_timezone(sample_csv_data: pathlib.Path) -> None:
+    """Test that compute_sleep_metrics raises an error for an invalid timezone."""
+    with pytest.raises(ValueError, match="Invalid timezone"):
+        main.compute_sleep_metrics(sample_csv_data, timezone="fake timezone")

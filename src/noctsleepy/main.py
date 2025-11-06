@@ -5,6 +5,7 @@ import itertools
 import pathlib
 from typing import Iterable, Literal, Optional
 
+from noctsleepy import timezones
 from noctsleepy.io import readers
 from noctsleepy.processing import sleep_variables
 
@@ -45,7 +46,8 @@ def compute_sleep_metrics(
 
     Args:
         input_data: Path to the input data file (CSV or Parquet).
-        timezone: Timezone aware location of the input data.
+        timezone: Timezone aware location of the input data. Used for Daylight
+            Savings Time processing, this must be an IANA timezone string.
         night_start: Start time of the nocturnal interval. If None, defaults to 20:00.
         night_end: End time of the nocturnal interval.  If None, defaults to 08:00.
         nw_threshold: Non-wear threshold, below which a night is considered valid.
@@ -55,7 +57,12 @@ def compute_sleep_metrics(
 
     Returns:
         An instance of SleepMetrics containing the computed metrics.
+
+    Raises:
+        ValueError: If the provided timezone is not valid.
     """
+    if timezone not in timezones.TIMEZONE_MAP.values():
+        raise ValueError(f"Invalid timezone: {timezone}")
     if night_start is None:
         night_start = datetime.time(hour=20, minute=0)
     if night_end is None:
