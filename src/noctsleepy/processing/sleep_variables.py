@@ -193,7 +193,6 @@ class SleepMetrics:
         within the nocturnal window.
         """
         if self._sleep_wakeup is None:
-                .select("sleep_wakeup")
             self._sleep_wakeup = _compute_wakeup(self.night_data)
         return self._sleep_wakeup
 
