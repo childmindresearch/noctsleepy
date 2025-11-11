@@ -352,7 +352,7 @@ def test_dst_london_forward() -> None:
     start_time = datetime.datetime(2025, 3, 29, 20, 0)
     all_times = [start_time + datetime.timedelta(minutes=10 * i) for i in range(36 * 6)]
 
-    dummy_data = pl.DataFrame(
+    data = pl.DataFrame(
         {
             "time": all_times,
             "sib_periods": [True] * len(all_times),
@@ -367,10 +367,80 @@ def test_dst_london_forward() -> None:
     nw_threshold = 0.2
 
     result = sleep_variables._filter_nights(
-        dummy_data, night_start, night_end, nw_threshold, timezone
+        data, night_start, night_end, nw_threshold, timezone
     )
 
     assert result["night_date"].unique().len() == 2, (
         f"Expected 2 valid nights, got {result['night_date'].unique().len()}"
     )
     assert len(result["time"]) == 138
+
+
+def test_dst_sleep_variables() -> None:
+    """Test how sleep_variables are computed after DST transition."""
+    dummy_date = datetime.datetime(year=2025, month=11, day=1, hour=17, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=10 * i) for i in range(288)
+    ]
+    data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * len(dummy_datetime_list),
+            "spt_periods": [True] * len(dummy_datetime_list),
+            "nonwear_status": [False] * len(dummy_datetime_list),
+        }
+    )
+    timezone = "America/New_York"
+    night_start = datetime.time(20, 0)
+    night_end = datetime.time(8, 0)
+    nw_threshold = 0.2
+
+    result = sleep_variables.SleepMetrics(
+        data,
+        timezone=timezone,
+        night_start=night_start,
+        night_end=night_end,
+        nw_threshold=nw_threshold,
+    )
+    assert result.sleep_duration.to_list() == [720, 720], (
+        f"Expected [720, 720], got {result.sleep_duration.to_list()}"
+    )
+    assert result.sleep_midpoint.to_list() == [
+        datetime.time(hour=1, minute=55),
+        datetime.time(hour=1, minute=55),
+    ], f"Expected [1:55, 1:55], got {result.sleep_midpoint.to_list()}"
+
+
+def test_dst_forward_sleep_variables() -> None:
+    """Test how sleep_variables are computed for London spring forward."""
+    start_time = datetime.datetime(2025, 3, 29, 20, 0)
+    all_times = [start_time + datetime.timedelta(minutes=10 * i) for i in range(288)]
+
+    data = pl.DataFrame(
+        {
+            "time": all_times,
+            "sib_periods": [True] * len(all_times),
+            "spt_periods": [True] * len(all_times),
+            "nonwear_status": [False] * len(all_times),
+        }
+    )
+
+    timezone = "Europe/London"
+    night_start = datetime.time(20, 0)
+    night_end = datetime.time(8, 0)
+    nw_threshold = 0.2
+
+    result = sleep_variables.SleepMetrics(
+        data,
+        timezone=timezone,
+        night_start=night_start,
+        night_end=night_end,
+        nw_threshold=nw_threshold,
+    )
+    assert result.sleep_duration.to_list() == [660, 720], (
+        f"Expected [660, 720], got {result.sleep_duration.to_list()}"
+    )
+    assert result.sleep_midpoint.to_list() == [
+        datetime.time(hour=1, minute=55),
+        datetime.time(hour=1, minute=55),
+    ], f"Expected [1:55, 1:55], got {result.sleep_midpoint.to_list()}"

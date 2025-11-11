@@ -42,6 +42,19 @@ def compute_sleep_metrics(
     Users can specify the start and end times of the night to filter the data,
     a non-wear threshold, and the metrics they want to compute.
 
+    **Handling Timezones and Daylight Savings Time (DST)**
+    Users must provide a location-aware timezone that conforms to the IANA timezone
+    database. During/after DST transitions, the nocturnal interval window will be
+    defined based on the wall-clock time.
+
+    Certain metrics, such as sleep onset, sleep wakeup, and sleep midpoint,
+    are calculated based solely on the wall clock time within the nocturnal interval.
+    However, sleep duration, time in bed, sleep efficiency, WASO are computed based
+    on the anatomical clock, accounting for any DST changes.
+    For example, if a night includes a "fall back" transition, the sleep duration
+    will reflect the additional hour gained during the transition.
+
+
     The output is saved to csv format.
 
     Args:

@@ -105,12 +105,13 @@ class SleepMetrics:
         Raises:
             ValueError: If there are no valid nights in the data.
         """
+        self.sampling_time = data["time"].dt.time().diff()[1].total_seconds()
         self.night_data = _filter_nights(
             data, night_start, night_end, nw_threshold, timezone
         )
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
-        self.sampling_time = self.night_data["time"].dt.time().diff()[1].total_seconds()
+
         self.weekdays = weekday_list
         self.weekend = weekend_list
 
@@ -128,11 +129,11 @@ class SleepMetrics:
                             .otherwise(0)
                             .sum()
                             * (self.sampling_time / 60)
-                        ).alias("sib_within_spt"),
+                        ).alias("sleep_duration"),
                     ]
                 )
                 .sort("night_date")
-                .select("sib_within_spt")
+                .select("sleep_duration")
                 .to_series()
             )
         return self._sleep_duration
@@ -192,15 +193,8 @@ class SleepMetrics:
         within the nocturnal window.
         """
         if self._sleep_wakeup is None:
-            self._sleep_wakeup = (
-                self.night_data.filter(pl.col("spt_periods"))
-                .group_by("night_date")
-                .agg(pl.col("time").max().alias("sleep_wakeup"))
-                .sort("night_date")
                 .select("sleep_wakeup")
-                .to_series()
-                .dt.time()
-            )
+            self._sleep_wakeup = _compute_wakeup(self.night_data)
         return self._sleep_wakeup
 
     @property
@@ -374,43 +368,27 @@ def _filter_nights(
         A Polars DataFrame containing only the valid nights.
 
     """
-    night_start_minutes = night_start.hour * 60 + night_start.minute
-    night_end_minutes = night_end.hour * 60 + night_end.minute
-    utc_data = _convert_to_utc(data, timezone)
-    utc_data = utc_data.with_columns(
-        [
-            (
-                (
-                    pl.col("time").dt.hour().cast(pl.Int32) * 60
-                    + pl.col("time").dt.minute().cast(pl.Int32)
-                    + (pl.col("utc_offset_hours") * 60)
-                )
-                % 1440
-            ).alias("local_time_minutes"),
-            pl.lit(night_start_minutes).alias("night_start_minutes"),
-            pl.lit(night_end_minutes).alias("night_end_minutes"),
-        ]
-    )
+    utc_night_data = _convert_to_utc(data, timezone)
     if night_start > night_end:
-        nocturnal_sleep = utc_data.filter(
-            (pl.col("local_time_minutes") >= pl.col("night_start_minutes"))
-            | (pl.col("local_time_minutes") < pl.col("night_end_minutes"))
+        nocturnal_sleep = utc_night_data.filter(
+            (pl.col("local_time").dt.time() >= night_start)
+            | (pl.col("local_time").dt.time() < night_end)
         )
         nocturnal_sleep = nocturnal_sleep.with_columns(
             [
-                pl.when(pl.col("time").dt.time() >= night_start)
-                .then(pl.col("time").dt.date())
-                .otherwise(pl.col("time").dt.date() - pl.duration(days=1))
+                pl.when(pl.col("local_time").dt.time() >= night_start)
+                .then(pl.col("local_time").dt.date())
+                .otherwise(pl.col("local_time").dt.date() - pl.duration(days=1))
                 .alias("night_date")
             ]
         )
     else:
-        nocturnal_sleep = utc_data.filter(
-            (pl.col("local_time_minutes") >= pl.col("night_start_minutes"))
-            & (pl.col("local_time_minutes") < pl.col("night_end_minutes"))
+        nocturnal_sleep = utc_night_data.filter(
+            (pl.col("local_time").dt.time() >= night_start)
+            & (pl.col("local_time").dt.time() < night_end)
         )
         nocturnal_sleep = nocturnal_sleep.with_columns(
-            pl.col("time").dt.date().alias("night_date")
+            pl.col("local_time").dt.date().alias("night_date")
         )
 
     night_stats = (
@@ -434,11 +412,7 @@ def _filter_nights(
         pl.col("non_wear_percentage") <= nw_threshold
     ).select(["night_date"])
 
-    return (
-        nocturnal_sleep.join(valid_nights, on="night_date")
-        .sort("time")
-        .drop(["local_time_minutes", "night_start_minutes", "night_end_minutes"])
-    )
+    return nocturnal_sleep.join(valid_nights, on="night_date").sort("local_time")
 
 
 def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
@@ -456,22 +430,67 @@ def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
         [
             pl.col("time")
             .dt.replace_time_zone(timezone, ambiguous="earliest", non_existent="null")
-            .alias("time_local")
+            .alias("local_time")
         ]
     )
 
     return data_with_tz.with_columns(
         [
-            pl.col("time_local").dt.convert_time_zone("UTC").alias("time"),
+            pl.col("local_time").dt.convert_time_zone("UTC").alias("time"),
             (
                 (
                     pl.col("time").dt.timestamp("ms")
-                    - pl.col("time_local").dt.timestamp("ms")
+                    - pl.col("local_time").dt.timestamp("ms")
                 )
                 / 3_600_000
             ).alias("utc_offset_hours"),
         ]
-    ).drop("time_local")
+    )
+
+
+def _fill_spring_forward_gaps(
+    utc_data: pl.DataFrame, sampling_time: float
+) -> pl.DataFrame:
+    """Fill missing timestamps caused by spring forward DST transitions.
+
+    Args:
+        utc_data: Night data after conversion to UTC timestamps.
+        sampling_time: The expected sampling time in seconds.
+
+    Returns:
+        DataFrame with missing timestamps filled in.
+    """
+    null_mask = utc_data["local_time"].is_null()
+    num_null_rows = null_mask.sum()
+
+    if num_null_rows > 0:
+        time_delta = datetime.timedelta(seconds=sampling_time)
+        time_columns = ["time", "local_time", "utc_offset_hours"]
+        time_df_no_nulls = utc_data.select(time_columns).filter(~null_mask)
+        data_df = utc_data.select(
+            [col for col in utc_data.columns if col not in time_columns]
+        )
+
+        extension_rows = []
+        last_local_time = time_df_no_nulls["local_time"][-1]
+        offset_after_dst = time_df_no_nulls["utc_offset_hours"][-1]
+        for i in range(1, num_null_rows + 1):
+            next_time = time_df_no_nulls["time"][-1] + time_delta * i
+            next_local_time = last_local_time + time_delta * i
+
+            extension_rows.append(
+                {
+                    "time": next_time,
+                    "local_time": next_local_time,
+                    "utc_offset_hours": offset_after_dst,
+                }
+            )
+
+        time_df_extended = pl.concat([time_df_no_nulls, pl.DataFrame(extension_rows)])
+
+        return pl.concat([time_df_extended, data_df], how="horizontal")
+
+    return utc_data
 
 
 def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.time:
@@ -502,7 +521,7 @@ def _compute_onset(df: pl.DataFrame) -> pl.Series:
     return (
         df.filter(pl.col("spt_periods"))
         .group_by("night_date")
-        .agg(pl.col("time").min().alias("sleep_onset"))
+        .agg(pl.col("local_time").min().alias("sleep_onset"))
         .sort("night_date")
         .select("sleep_onset")
         .to_series()
@@ -514,7 +533,7 @@ def _compute_wakeup(df: pl.DataFrame) -> pl.Series:
     return (
         df.filter(pl.col("spt_periods"))
         .group_by("night_date")
-        .agg(pl.col("time").max().alias("sleep_wakeup"))
+        .agg(pl.col("local_time").max().alias("sleep_wakeup"))
         .sort("night_date")
         .select("sleep_wakeup")
         .to_series()
