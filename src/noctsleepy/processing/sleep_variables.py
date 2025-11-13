@@ -460,7 +460,7 @@ def _fill_spring_forward_gaps(
         DataFrame with missing timestamps filled in.
     """
     null_mask = utc_data["local_time"].is_null()
-    num_null_rows = null_mask.sum()
+    num_null_rows = int(null_mask.sum())
 
     if num_null_rows > 0:
         time_delta = datetime.timedelta(seconds=sampling_time)

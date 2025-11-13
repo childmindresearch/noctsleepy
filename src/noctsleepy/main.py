@@ -74,7 +74,7 @@ def compute_sleep_metrics(
     Raises:
         ValueError: If the provided timezone is not valid.
     """
-    if timezone not in timezones.TIMEZONE_MAP.values():
+    if timezone not in list(timezones.CommonTimezones.__args__):  # type: ignore[attr-defined] #Valid attribute for Literal
         raise ValueError(f"Invalid timezone: {timezone}")
     if night_start is None:
         night_start = datetime.time(hour=20, minute=0)

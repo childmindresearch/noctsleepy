@@ -27,7 +27,7 @@ def test_main_default(
 
     result = create_typer_cli_runner.invoke(
         cli.app,
-        [str(sample_csv_data), "us_eastern"],
+        [str(sample_csv_data), "America/New_York"],
     )
 
     assert result.exit_code == 0, f"CLI exited with error: {result.output}"
@@ -53,7 +53,7 @@ def test_main_custom_params(
         cli.app,
         [
             str(sample_csv_data),
-            "EUROPE_BERLIN",
+            "Europe/Berlin",
             "--night-start",
             "21:00",
             "--night-end",

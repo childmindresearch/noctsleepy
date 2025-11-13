@@ -71,7 +71,7 @@ def compute_metrics(
         typer.Argument(
             help="Geographic timezone location for the data collection site. "
             "Used for DST-aware processing. "
-            "These will be converted to IANA timezone identifiers internally.",
+            "Must match the IANA timezone list provided in `timezones.py`.",
             case_sensitive=False,
             show_choices=True,
         ),
@@ -129,7 +129,7 @@ def compute_metrics(
     """
     main.compute_sleep_metrics(
         input_data=input_data,
-        timezone=timezones.TIMEZONE_MAP[timezone.value],
+        timezone=timezone,
         night_start=night_start,  # type: ignore[arg-type] #Covered by parse_time callback
         night_end=night_end,  # type: ignore[arg-type] #Covered by parse_time callback
         nw_threshold=nw_threshold,
