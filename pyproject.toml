@@ -54,7 +54,7 @@ convention = "google"
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = []
 
-[tool.deptry]
+[tool.deptry.per_rule_ignores]
 DEP002 = ["tzdata"]
 
 [build-system]
