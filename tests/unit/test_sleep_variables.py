@@ -34,7 +34,12 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     timezone = "UTC"
 
     valid_nights = sleep_variables._filter_nights(
-        create_dummy_data, night_start, night_end, nw_threshold, timezone
+        create_dummy_data,
+        night_start,
+        night_end,
+        nw_threshold,
+        timezone,
+        sampling_time=60,
     )
     time_check = (
         (valid_nights["time"].dt.time() >= night_start)
@@ -55,7 +60,12 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     timezone = "UTC"
 
     valid_nights = sleep_variables._filter_nights(
-        create_dummy_data, night_start, night_end, nw_threshold, timezone
+        create_dummy_data,
+        night_start,
+        night_end,
+        nw_threshold,
+        timezone,
+        sampling_time=60,
     )
     time_check = (
         (valid_nights["time"].dt.time() >= night_start)
@@ -319,7 +329,7 @@ def test_utc_conversion(
     )
 
 
-def test_dst__backward_sleep_variables() -> None:
+def test_dst_fall_back_sleep_variables() -> None:
     """Test how sleep_variables are computed after DST transition."""
     dummy_date = datetime.datetime(year=2025, month=11, day=1, hour=17, minute=0)
     dummy_datetime_list = [
@@ -328,8 +338,14 @@ def test_dst__backward_sleep_variables() -> None:
     data = pl.DataFrame(
         {
             "time": dummy_datetime_list,
-            "sib_periods": [True] * len(dummy_datetime_list),
-            "spt_periods": [True] * len(dummy_datetime_list),
+            "sib_periods": [
+                (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
+                for t in dummy_datetime_list
+            ],
+            "spt_periods": [
+                (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
+                for t in dummy_datetime_list
+            ],
             "nonwear_status": [False] * len(dummy_datetime_list),
         }
     )
@@ -345,13 +361,22 @@ def test_dst__backward_sleep_variables() -> None:
         night_end=night_end,
         nw_threshold=nw_threshold,
     )
-    assert result.sleep_duration.to_list() == [720, 720], (
-        f"Expected [720, 720], got {result.sleep_duration.to_list()}"
+    assert result.sleep_duration.to_list() == [480, 480], (
+        f"Expected [480, 480], got {result.sleep_duration.to_list()}"
     )
     assert result.sleep_midpoint.to_list() == [
-        datetime.time(hour=1, minute=55),
-        datetime.time(hour=1, minute=55),
-    ], f"Expected [1:55, 1:55], got {result.sleep_midpoint.to_list()}"
+        datetime.time(hour=1, minute=25),
+        datetime.time(hour=0, minute=55),
+    ], f"Expected [1:25, 0:55], got {result.sleep_midpoint.to_list()}"
+    assert result.sleep_onset.to_list() == [
+        datetime.time(hour=22, minute=0),
+        datetime.time(hour=21, minute=0),
+    ], f"Expected [22:00, 21:00], got {result.sleep_onset.to_list()}"
+
+    assert result.sleep_wakeup.to_list() == [
+        datetime.time(hour=4, minute=50),
+        datetime.time(hour=4, minute=50),
+    ], f"Expected [4:50, 4:50], got {result.sleep_wakeup.to_list()}"
 
 
 def test_dst_forward_sleep_variables() -> None:
@@ -392,9 +417,9 @@ def test_dst_forward_sleep_variables() -> None:
         f"Expected [480, 480], got {result.sleep_duration.to_list()}"
     )
     assert result.sleep_midpoint.to_list() == [
-        datetime.time(hour=1, minute=55),
-        datetime.time(hour=1, minute=55),
-    ], f"Expected [1:55, 1:55], got {result.sleep_midpoint.to_list()}"
+        datetime.time(hour=2, minute=25),
+        datetime.time(hour=2, minute=55),
+    ], f"Expected [2:25, 2:55], got {result.sleep_midpoint.to_list()}"
 
     assert result.sleep_onset.to_list() == [
         datetime.time(hour=22, minute=0),
@@ -402,6 +427,6 @@ def test_dst_forward_sleep_variables() -> None:
     ], f"Expected [22:00, 23:00], got {result.sleep_onset.to_list()}"
 
     assert result.sleep_wakeup.to_list() == [
-        datetime.time(hour=7, minute=0),
-        datetime.time(hour=7, minute=0),
-    ], f"Expected [7:00, 7:00], got {result.sleep_wakeup.to_list()}"
+        datetime.time(hour=6, minute=50),
+        datetime.time(hour=6, minute=50),
+    ], f"Expected [6:50, 6:50], got {result.sleep_wakeup.to_list()}"

@@ -107,7 +107,7 @@ class SleepMetrics:
         """
         self.sampling_time = data["time"].dt.time().diff()[1].total_seconds()
         self.night_data = _filter_nights(
-            data, night_start, night_end, nw_threshold, timezone
+            data, night_start, night_end, nw_threshold, timezone, self.sampling_time
         )
         if self.night_data.is_empty():
             raise ValueError("No valid nights found in the data.")
@@ -342,6 +342,7 @@ def _filter_nights(
     night_end: datetime.time,
     nw_threshold: float,
     timezone: str,
+    sampling_time: float,
 ) -> pl.DataFrame:
     """Find valid nights in the processed actigraphy data.
 
@@ -362,12 +363,18 @@ def _filter_nights(
         nw_threshold: A threshold for the non-wear status, below which a night is
             considered valid. Expressed as a percentage (0.0 to 1.0).
         timezone: The timezone of the input data. User defined based on location.
+        sampling_time: The sampling time in seconds.
 
     Returns:
         A Polars DataFrame containing only the valid nights.
 
     """
     utc_night_data = _convert_to_utc(data, timezone)
+    if utc_night_data["local_time"].is_null().any():
+        utc_night_data = _fill_spring_forward_gaps(utc_night_data, sampling_time)
+    if utc_night_data["utc_offset_hours"].diff().cast(pl.Int8).eq(-1).any():
+        utc_night_data = _fill_fall_back(utc_night_data, sampling_time)
+
     if night_start > night_end:
         nocturnal_sleep = utc_night_data.filter(
             (pl.col("local_time").dt.time() >= night_start)
@@ -462,34 +469,90 @@ def _fill_spring_forward_gaps(
     null_mask = utc_data["local_time"].is_null()
     num_null_rows = int(null_mask.sum())
 
-    if num_null_rows > 0:
-        time_delta = datetime.timedelta(seconds=sampling_time)
-        time_columns = ["time", "local_time", "utc_offset_hours"]
-        time_df_no_nulls = utc_data.select(time_columns).filter(~null_mask)
-        data_df = utc_data.select(
-            [col for col in utc_data.columns if col not in time_columns]
-        )
+    time_delta = datetime.timedelta(seconds=sampling_time)
+    time_columns = ["time", "local_time", "utc_offset_hours"]
+    time_df_no_nulls = utc_data.select(time_columns).filter(~null_mask)
+    data_df = utc_data.select(
+        [col for col in utc_data.columns if col not in time_columns]
+    )
 
-        extension_rows = []
-        last_local_time = time_df_no_nulls["local_time"][-1]
-        offset_after_dst = time_df_no_nulls["utc_offset_hours"][-1]
-        for i in range(1, num_null_rows + 1):
-            next_time = time_df_no_nulls["time"][-1] + time_delta * i
-            next_local_time = last_local_time + time_delta * i
+    last_time = time_df_no_nulls["time"][-1]
+    last_local_time = time_df_no_nulls["local_time"][-1]
+    offset_after_dst = time_df_no_nulls["utc_offset_hours"][-1]
 
-            extension_rows.append(
-                {
-                    "time": next_time,
-                    "local_time": next_local_time,
-                    "utc_offset_hours": offset_after_dst,
-                }
-            )
+    extension_df = pl.DataFrame(
+        {
+            "time": [last_time + time_delta * i for i in range(1, num_null_rows + 1)],
+            "local_time": [
+                last_local_time + time_delta * i for i in range(1, num_null_rows + 1)
+            ],
+            "utc_offset_hours": [offset_after_dst] * num_null_rows,
+        }
+    )
 
-        time_df_extended = pl.concat([time_df_no_nulls, pl.DataFrame(extension_rows)])
+    time_df_extended = pl.concat([time_df_no_nulls, extension_df])
 
-        return pl.concat([time_df_extended, data_df], how="horizontal")
+    return pl.concat([time_df_extended, data_df], how="horizontal")
 
-    return utc_data
+
+def _fill_fall_back(utc_data: pl.DataFrame, sampling_time: float) -> pl.DataFrame:
+    """Fill the gap created by fall back DST transitions.
+
+    Polars DST handling removes the "ambiguous" hour during fall back transitions,
+    resulting in missing timestamps in the UTC data. This function identifies the
+    transition point and fills in the missing timestamps to maintain
+    consistent sampling intervals.
+
+    One side effect is duplicated local times during the fall back hour,
+    but this is necessary to preserve the correct timing in UTC.
+
+    Args:
+        utc_data: Night data after conversion to UTC timestamps.
+        sampling_time: The expected sampling time in seconds.
+
+    Returns:
+        DataFrame with missing UTC timestamps filled in.
+    """
+    offset_diff = utc_data["utc_offset_hours"].diff().cast(pl.Int8)
+    fall_back_idx = offset_diff.eq(-1).arg_true()[0]
+
+    time_columns = ["time", "local_time", "utc_offset_hours"]
+    data_columns = [col for col in utc_data.columns if col not in time_columns]
+
+    time_df = utc_data.select(time_columns)
+    data_df = utc_data.select(data_columns)
+
+    time_before_gap = utc_data["time"][fall_back_idx - 1]
+    time_after_gap = utc_data["time"][fall_back_idx]
+    time_delta_seconds = (time_after_gap - time_before_gap).total_seconds()
+
+    n_rows = int((time_delta_seconds - sampling_time) / sampling_time)
+
+    time_delta = datetime.timedelta(seconds=sampling_time)
+    last_time_before_gap = time_df["time"][fall_back_idx - 1]
+    last_local_time_before_gap = time_df["local_time"][fall_back_idx - 1]
+    offset_after_gap = time_df["utc_offset_hours"][fall_back_idx + 1]
+
+    fill_df = pl.DataFrame(
+        {
+            "time": [
+                last_time_before_gap + time_delta * i for i in range(1, n_rows + 1)
+            ],
+            "local_time": [
+                last_local_time_before_gap + time_delta * i
+                for i in range(1, n_rows + 1)
+            ],
+            "utc_offset_hours": [offset_after_gap] * n_rows,
+        }
+    )
+
+    time_df_before = time_df[:fall_back_idx]
+    time_df_after = time_df[fall_back_idx:]
+    time_df_filled = pl.concat([time_df_before, fill_df, time_df_after])
+
+    time_df_trimmed = time_df_filled[:-n_rows]
+
+    return pl.concat([time_df_trimmed, data_df], how="horizontal")
 
 
 def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.time:
