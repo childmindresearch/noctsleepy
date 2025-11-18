@@ -12,6 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "polars>=1.31.0",
     "typer>=0.20.0",
+    "tzdata>=2025.2",
 ]
 [project.scripts]
 noctsleepy = "noctsleepy.__main__:run_main"
