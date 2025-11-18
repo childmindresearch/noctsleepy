@@ -55,8 +55,7 @@ convention = "google"
 "tests/**/*.py" = []
 
 [tool.deptry]
-known_first_party = ["noctsleepy"]
-ignore_obsolete = ["tzdata"]
+DEP002 = ["tzdata"]
 
 [build-system]
 requires = ["hatchling"]
