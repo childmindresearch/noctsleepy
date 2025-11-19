@@ -117,7 +117,11 @@ class SleepMetrics:
 
     @property
     def sleep_duration(self) -> pl.Series:
-        """Calculate total sleep duration in minutes."""
+        """Calculate total sleep duration in minutes.
+
+        Sleep duration is calculated as the sum of sustained inactivity bouts,
+        thus it is a measure of the anatomical clock, not based on wall-clock time.
+        """
         if self._sleep_duration is None:
             self._sleep_duration = (
                 self.night_data.group_by("night_date")
@@ -140,7 +144,12 @@ class SleepMetrics:
 
     @property
     def time_in_bed(self) -> pl.Series:
-        """Calculate total time in bed in minutes."""
+        """Calculate total time in bed in minutes.
+
+        Time in bed is calculated as the total duration of the SPT window(s),
+        within the nocturnal window. This calculation is based on the
+        anatomical clock, not wall-clock time.
+        """
         if self._time_in_bed is None:
             self._time_in_bed = (
                 self.night_data.group_by("night_date")
@@ -180,6 +189,9 @@ class SleepMetrics:
 
         This is defined as the time when the first sleep period starts,
         within the nocturnal window.
+
+        If the nights cross a DST transition, the onset time reflects
+        the new local time after the clock change.
         """
         if self._sleep_onset is None:
             self._sleep_onset = _compute_onset(self.night_data)
@@ -191,6 +203,9 @@ class SleepMetrics:
 
         Defined as the time when the last sleep period ends,
         within the nocturnal window.
+
+        If the nights cross a DST transition, the wakeup time reflects
+        the new local time after the clock change.
         """
         if self._sleep_wakeup is None:
             self._sleep_wakeup = _compute_wakeup(self.night_data)
@@ -432,6 +447,7 @@ def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
         DataFrame with 'time' column converted to UTC. Also adds a column
             'utc_offset_hours' indicating the offset from UTC in hours.
     """
+    ms_per_hour = 3_600_000
     data_with_tz = data.with_columns(
         [
             pl.col("time")
@@ -448,7 +464,7 @@ def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
                     pl.col("time").dt.timestamp("ms")
                     - pl.col("local_time").dt.timestamp("ms")
                 )
-                / 3_600_000
+                / ms_per_hour
             ).alias("utc_offset_hours"),
         ]
     )

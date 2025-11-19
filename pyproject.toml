@@ -55,7 +55,7 @@ convention = "google"
 "tests/**/*.py" = []
 
 [tool.deptry.per_rule_ignores]
-DEP002 = ["tzdata"]
+DEP002 = ["tzdata"] #Windows only dependency required for timezone handling within Polars that isn't directly imported
 
 [build-system]
 requires = ["hatchling"]
