@@ -7,7 +7,7 @@ from typing import Annotated, List
 
 import typer
 
-from noctsleepy import main
+from noctsleepy import main, timezones
 
 app = typer.Typer(
     name="noctsleepy",
@@ -66,6 +66,16 @@ def compute_metrics(
             "or at the minimum, must have a compatible output format.",
         ),
     ],
+    timezone: Annotated[
+        timezones.CommonTimezones,
+        typer.Argument(
+            help="Geographic timezone location for the data collection site. "
+            "Used for DST-aware processing. "
+            "Must match the IANA timezone list provided in `timezones.py`.",
+            case_sensitive=False,
+            show_choices=True,
+        ),
+    ],
     night_start: Annotated[
         str,
         typer.Option(
@@ -119,6 +129,7 @@ def compute_metrics(
     """
     main.compute_sleep_metrics(
         input_data=input_data,
+        timezone=timezone,
         night_start=night_start,  # type: ignore[arg-type] #Covered by parse_time callback
         night_end=night_end,  # type: ignore[arg-type] #Covered by parse_time callback
         nw_threshold=nw_threshold,

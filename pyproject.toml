@@ -11,7 +11,8 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "polars>=1.31.0",
-    "typer>=0.17.4",
+    "typer>=0.20.0",
+    "tzdata>=2025.2",
 ]
 [project.scripts]
 noctsleepy = "noctsleepy.__main__:run_main"
@@ -52,6 +53,9 @@ convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = []
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["tzdata"] #Windows only dependency required for timezone handling within Polars that isn't directly imported
 
 [build-system]
 requires = ["hatchling"]

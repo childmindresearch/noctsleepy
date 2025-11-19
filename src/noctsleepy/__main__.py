@@ -1,10 +1,10 @@
-"""Main function for wristpy."""
+"""Main function for noctsleepy."""
 
 from noctsleepy import cli
 
 
 def run_main() -> None:
-    """Main entry point to wristpy."""
+    """Main entry point to noctsleepy."""
     cli.app()
 
 

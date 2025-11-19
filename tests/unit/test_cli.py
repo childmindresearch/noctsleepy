@@ -27,12 +27,13 @@ def test_main_default(
 
     result = create_typer_cli_runner.invoke(
         cli.app,
-        [str(sample_csv_data)],
+        [str(sample_csv_data), "America/New_York"],
     )
 
     assert result.exit_code == 0, f"CLI exited with error: {result.output}"
     mock_compute.assert_called_once_with(
         input_data=sample_csv_data,
+        timezone="America/New_York",
         night_start=datetime.time(hour=20, minute=0),
         night_end=datetime.time(hour=8, minute=0),
         nw_threshold=0.2,
@@ -52,6 +53,7 @@ def test_main_custom_params(
         cli.app,
         [
             str(sample_csv_data),
+            "Europe/Berlin",
             "--night-start",
             "21:00",
             "--night-end",
@@ -68,6 +70,7 @@ def test_main_custom_params(
     assert result.exit_code == 0, f"CLI exited with error: {result.output}"
     mock_compute.assert_called_once_with(
         input_data=sample_csv_data,
+        timezone="Europe/Berlin",
         night_start=datetime.time(hour=21, minute=0),
         night_end=datetime.time(hour=7, minute=0),
         nw_threshold=0.3,
