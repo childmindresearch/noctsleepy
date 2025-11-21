@@ -8,6 +8,8 @@ from typing import Iterable, Optional
 
 import polars as pl
 
+from noctsleepy.processing import utils
+
 
 class DayOfWeek(enum.IntEnum):
     """Class to represent days of the week as integers."""
@@ -317,8 +319,8 @@ class SleepMetrics:
                 self._social_jetlag = float("nan")
             else:
                 self._social_jetlag = _time_difference_abs_hours(
-                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
-                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    utils.compute_circular_mean_time(self.weekday_midpoint),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    utils.compute_circular_mean_time(self.weekend_midpoint),  # type: ignore[arg-type] #covered by the is_empty() check above
                 )
         return self._social_jetlag
 
@@ -642,3 +644,62 @@ def _time_difference_abs_hours(time1: datetime.time, time2: datetime.time) -> fl
         diff = 24 - diff
 
     return diff
+
+
+def extract_simple_statistics(
+    sleep_metrics: SleepMetrics,
+) -> pl.DataFrame:
+    """Extract simple statistics from sleep metrics.
+
+    Args:
+        sleep_metrics: An instance of SleepMetrics containing computed sleep metrics.
+
+    Returns:
+        A DataFrame containing the extracted statistics.
+    """
+    df = pl.DataFrame(
+        {
+            "mean_sleep_duration": sleep_metrics.sleep_duration.mean(),
+            "sd_sleep_duration": sleep_metrics.sleep_duration.std(),
+            "mean_time_in_bed": sleep_metrics.time_in_bed.mean(),
+            "sd_time_in_bed": sleep_metrics.time_in_bed.std(),
+            "mean_sleep_efficiency": sleep_metrics.sleep_efficiency.mean(),
+            "sd_sleep_efficiency": sleep_metrics.sleep_efficiency.std(),
+            "mean_waso": sleep_metrics.waso.mean(),
+            "sd_waso": sleep_metrics.waso.std(),
+            "mean_num_awakenings": sleep_metrics.num_awakenings.mean(),
+            "sd_num_awakenings": sleep_metrics.num_awakenings.std(),
+            "mean_sleep_onset_time": utils.compute_circular_mean_time(
+                sleep_metrics.sleep_onset
+            ),
+            "sd_sleep_onset_time": utils.compute_circular_sd_time(
+                sleep_metrics.sleep_onset
+            ),
+            "mean_wakeup_time": utils.compute_circular_mean_time(
+                sleep_metrics.sleep_wakeup
+            ),
+            "sd_wakeup_time": utils.compute_circular_sd_time(
+                sleep_metrics.sleep_wakeup
+            ),
+            "mean_midpoint_sleep": utils.compute_circular_mean_time(
+                sleep_metrics.sleep_midpoint
+            ),
+            "sd_midpoint_sleep": utils.compute_circular_sd_time(
+                sleep_metrics.sleep_midpoint
+            ),
+            "mean_weekday_midpoint": utils.compute_circular_mean_time(
+                sleep_metrics.weekday_midpoint
+            ),
+            "sd_weekday_midpoint": utils.compute_circular_sd_time(
+                sleep_metrics.weekday_midpoint
+            ),
+            "mean_weekend_midpoint": utils.compute_circular_mean_time(
+                sleep_metrics.weekend_midpoint
+            ),
+            "sd_weekend_midpoint": utils.compute_circular_sd_time(
+                sleep_metrics.weekend_midpoint
+            ),
+        }
+    )
+
+    return df
