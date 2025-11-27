@@ -35,3 +35,11 @@ def test_compute_circular_mean_time(
     """Test the compute_circular_mean_time function."""
     mean_time = utils.compute_circular_mean_time(input_series)
     assert mean_time == expected_mean
+
+
+def test_compute_circular_sd_time() -> None:
+    """Test the compute_circular_sd_time function."""
+    sd_time = utils.compute_circular_sd_time(
+        (pl.Series([datetime.time(23, 30), datetime.time(23, 30)]))
+    )
+    assert sd_time == 0.0

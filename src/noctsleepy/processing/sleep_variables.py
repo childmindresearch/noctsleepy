@@ -2,8 +2,6 @@
 
 import datetime
 import enum
-import json
-import pathlib
 from typing import Iterable, Optional
 
 import polars as pl
@@ -324,15 +322,15 @@ class SleepMetrics:
                 )
         return self._social_jetlag
 
-    def save_to_json(
-        self, filename: pathlib.Path, requested_metrics: Iterable[str]
-    ) -> None:
+    def save_to_json(self, requested_metrics: Iterable[str]) -> dict:
         """Save the sleep metrics to a json file.
 
         Args:
-            filename: The path to the output CSV file.
             requested_metrics: An iterable of the metric names to compute
                 and include in the output.
+
+        Returns:
+            A dictionary containing the requested metrics.
         """
 
         def value_to_string(value: pl.Series | float) -> list[str] | str:
@@ -346,11 +344,7 @@ class SleepMetrics:
 
             return str(value)
 
-        metrics_dict = {
-            key: value_to_string(getattr(self, key)) for key in requested_metrics
-        }
-
-        filename.write_text(json.dumps(metrics_dict, indent=2))
+        return {key: value_to_string(getattr(self, key)) for key in requested_metrics}
 
 
 def _filter_nights(
@@ -648,58 +642,49 @@ def _time_difference_abs_hours(time1: datetime.time, time2: datetime.time) -> fl
 
 def extract_simple_statistics(
     sleep_metrics: SleepMetrics,
-) -> pl.DataFrame:
-    """Extract simple statistics from sleep metrics.
+) -> dict:
+    """Extract simple statistics (mean and standard deviation) from sleep metrics.
 
     Args:
         sleep_metrics: An instance of SleepMetrics containing computed sleep metrics.
 
     Returns:
-        A DataFrame containing the extracted statistics.
+        A dictionary containing the summary statistics.
     """
-    df = pl.DataFrame(
-        {
-            "mean_sleep_duration": sleep_metrics.sleep_duration.mean(),
-            "sd_sleep_duration": sleep_metrics.sleep_duration.std(),
-            "mean_time_in_bed": sleep_metrics.time_in_bed.mean(),
-            "sd_time_in_bed": sleep_metrics.time_in_bed.std(),
-            "mean_sleep_efficiency": sleep_metrics.sleep_efficiency.mean(),
-            "sd_sleep_efficiency": sleep_metrics.sleep_efficiency.std(),
-            "mean_waso": sleep_metrics.waso.mean(),
-            "sd_waso": sleep_metrics.waso.std(),
-            "mean_num_awakenings": sleep_metrics.num_awakenings.mean(),
-            "sd_num_awakenings": sleep_metrics.num_awakenings.std(),
-            "mean_sleep_onset_time": utils.compute_circular_mean_time(
-                sleep_metrics.sleep_onset
-            ),
-            "sd_sleep_onset_time": utils.compute_circular_sd_time(
-                sleep_metrics.sleep_onset
-            ),
-            "mean_wakeup_time": utils.compute_circular_mean_time(
-                sleep_metrics.sleep_wakeup
-            ),
-            "sd_wakeup_time": utils.compute_circular_sd_time(
-                sleep_metrics.sleep_wakeup
-            ),
-            "mean_midpoint_sleep": utils.compute_circular_mean_time(
-                sleep_metrics.sleep_midpoint
-            ),
-            "sd_midpoint_sleep": utils.compute_circular_sd_time(
-                sleep_metrics.sleep_midpoint
-            ),
-            "mean_weekday_midpoint": utils.compute_circular_mean_time(
-                sleep_metrics.weekday_midpoint
-            ),
-            "sd_weekday_midpoint": utils.compute_circular_sd_time(
-                sleep_metrics.weekday_midpoint
-            ),
-            "mean_weekend_midpoint": utils.compute_circular_mean_time(
-                sleep_metrics.weekend_midpoint
-            ),
-            "sd_weekend_midpoint": utils.compute_circular_sd_time(
-                sleep_metrics.weekend_midpoint
-            ),
-        }
-    )
+    stats_dict = {}
 
-    return df
+    duration_metrics = [
+        "sleep_duration",
+        "time_in_bed",
+        "sleep_efficiency",
+        "waso",
+        "num_awakenings",
+    ]
+    time_metrics = [
+        "sleep_onset",
+        "sleep_wakeup",
+        "sleep_midpoint",
+        "weekday_midpoint",
+        "weekend_midpoint",
+    ]
+
+    for metric_name in duration_metrics:
+        private_attr = f"_{metric_name}"
+        if getattr(sleep_metrics, private_attr, None) is not None:
+            metric_series = getattr(sleep_metrics, metric_name)
+            stats_dict[f"{metric_name}_mean"] = metric_series.mean()
+            stats_dict[f"{metric_name}_sd"] = metric_series.std()
+
+    for metric_name in time_metrics:
+        private_attr = f"_{metric_name}"
+        if getattr(sleep_metrics, private_attr, None) is not None:
+            metric_series = getattr(sleep_metrics, metric_name)
+            if not metric_series.is_empty():
+                stats_dict[f"{metric_name}_mean"] = utils.compute_circular_mean_time(
+                    metric_series
+                )
+                stats_dict[f"{metric_name}_sd"] = utils.compute_circular_sd_time(
+                    metric_series
+                )
+
+    return stats_dict

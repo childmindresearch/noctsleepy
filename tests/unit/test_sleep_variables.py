@@ -430,3 +430,24 @@ def test_dst_forward_sleep_variables() -> None:
         datetime.time(hour=6, minute=50),
         datetime.time(hour=6, minute=50),
     ], f"Expected [6:50, 6:50], got {result.sleep_wakeup.to_list()}"
+
+
+def test_get_simple_statistics(create_dummy_data: pl.DataFrame) -> None:
+    """Test the extract_simple_statistics function."""
+    metrics = sleep_variables.SleepMetrics(create_dummy_data, timezone="UTC")
+    metrics.sleep_duration
+    stats = sleep_variables.extract_simple_statistics(metrics)
+
+    expected_stats = {
+        "sleep_duration_mean": 720.0,
+        "sleep_duration_sd": 0.0,
+        "time_in_bed_mean": 720.0,
+        "time_in_bed_sd": 0.0,
+        "sleep_efficiency_mean": 100.0,
+        "sleep_efficiency_sd": 0.0,
+    }
+
+    for key, expected_value in expected_stats.items():
+        assert stats[key] == expected_value, (
+            f"Expected {key} = {expected_value}, got {stats[key]}"
+        )

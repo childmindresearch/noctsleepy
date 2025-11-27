@@ -2,6 +2,7 @@
 
 import datetime
 import itertools
+import json
 import pathlib
 from typing import Iterable, Literal, Optional
 
@@ -100,6 +101,19 @@ def compute_sleep_metrics(
         METRIC_MAPPING[metric] for metric in selected_metrics
     )
 
-    sleep_data.save_to_json(output_file, metrics_to_compute)
+    sleep_metrics_dict = sleep_data.save_to_json(metrics_to_compute)
+
+    summary_stats = sleep_variables.extract_simple_statistics(sleep_data)
+
+    output_file.write_text(
+        json.dumps(
+            {
+                "sleep_metrics": sleep_metrics_dict,
+                "summary_statistics": summary_stats,
+            },
+            indent=4,
+            default=str,
+        )
+    )
 
     return sleep_data
