@@ -1,11 +1,13 @@
 """Unit tests for the sleep_variables module."""
 
 import datetime
+import itertools
 import math
 
 import polars as pl
 import pytest
 
+from noctsleepy import main
 from noctsleepy.processing import sleep_variables
 
 
@@ -434,17 +436,25 @@ def test_dst_forward_sleep_variables() -> None:
 
 def test_get_simple_statistics(create_dummy_data: pl.DataFrame) -> None:
     """Test the extract_simple_statistics function."""
+    selected_metrics = ["sleep_duration", "sleep_continuity", "sleep_timing"]
+    metrics_to_compute = itertools.chain.from_iterable(
+        main.METRIC_MAPPING[metric] for metric in selected_metrics
+    )
     metrics = sleep_variables.SleepMetrics(create_dummy_data, timezone="UTC")
-    metrics.sleep_duration
+    metrics.save_to_dict(metrics_to_compute)
     stats = sleep_variables.extract_simple_statistics(metrics)
 
     expected_stats = {
         "sleep_duration_mean": 720.0,
-        "sleep_duration_sd": 0.0,
+        "sleep_duration_sd": None,
         "time_in_bed_mean": 720.0,
-        "time_in_bed_sd": 0.0,
+        "time_in_bed_sd": None,
         "sleep_efficiency_mean": 100.0,
-        "sleep_efficiency_sd": 0.0,
+        "sleep_efficiency_sd": None,
+        "sleep_onset_mean": datetime.time(hour=20, minute=0),
+        "sleep_onset_sd": 0.0,
+        "sleep_midpoint_mean": datetime.time(hour=1, minute=59, second=30),
+        "sleep_midpoint_sd": 0.0,
     }
 
     for key, expected_value in expected_stats.items():

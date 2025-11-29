@@ -322,8 +322,8 @@ class SleepMetrics:
                 )
         return self._social_jetlag
 
-    def save_to_json(self, requested_metrics: Iterable[str]) -> dict:
-        """Save the sleep metrics to a json file.
+    def save_to_dict(self, requested_metrics: Iterable[str]) -> dict:
+        """Save the sleep metrics to a dictionary to be added to a json output.
 
         Args:
             requested_metrics: An iterable of the metric names to compute
