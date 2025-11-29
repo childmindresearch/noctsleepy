@@ -438,7 +438,8 @@ def test_get_simple_statistics(create_dummy_data: pl.DataFrame) -> None:
     """Test the extract_simple_statistics function."""
     selected_metrics = ["sleep_duration", "sleep_continuity", "sleep_timing"]
     metrics_to_compute = itertools.chain.from_iterable(
-        main.METRIC_MAPPING[metric] for metric in selected_metrics
+        main.METRIC_MAPPING[metric]  # type: ignore[index]
+        for metric in selected_metrics
     )
     metrics = sleep_variables.SleepMetrics(create_dummy_data, timezone="UTC")
     metrics.save_to_dict(metrics_to_compute)
