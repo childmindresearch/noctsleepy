@@ -2,11 +2,11 @@
 
 import datetime
 import enum
-import json
-import pathlib
 from typing import Iterable, Optional
 
 import polars as pl
+
+from noctsleepy.processing import utils
 
 
 class DayOfWeek(enum.IntEnum):
@@ -317,20 +317,20 @@ class SleepMetrics:
                 self._social_jetlag = float("nan")
             else:
                 self._social_jetlag = _time_difference_abs_hours(
-                    self.weekday_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
-                    self.weekend_midpoint.mean(),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    utils.compute_circular_mean_time(self.weekday_midpoint),  # type: ignore[arg-type] #covered by the is_empty() check above
+                    utils.compute_circular_mean_time(self.weekend_midpoint),  # type: ignore[arg-type] #covered by the is_empty() check above
                 )
         return self._social_jetlag
 
-    def save_to_json(
-        self, filename: pathlib.Path, requested_metrics: Iterable[str]
-    ) -> None:
-        """Save the sleep metrics to a json file.
+    def save_to_dict(self, requested_metrics: Iterable[str]) -> dict:
+        """Save the sleep metrics to a dictionary to be added to a json output.
 
         Args:
-            filename: The path to the output CSV file.
             requested_metrics: An iterable of the metric names to compute
                 and include in the output.
+
+        Returns:
+            A dictionary containing the requested metrics.
         """
 
         def value_to_string(value: pl.Series | float) -> list[str] | str:
@@ -344,11 +344,7 @@ class SleepMetrics:
 
             return str(value)
 
-        metrics_dict = {
-            key: value_to_string(getattr(self, key)) for key in requested_metrics
-        }
-
-        filename.write_text(json.dumps(metrics_dict, indent=2))
+        return {key: value_to_string(getattr(self, key)) for key in requested_metrics}
 
 
 def _filter_nights(
@@ -642,3 +638,53 @@ def _time_difference_abs_hours(time1: datetime.time, time2: datetime.time) -> fl
         diff = 24 - diff
 
     return diff
+
+
+def extract_simple_statistics(
+    sleep_metrics: SleepMetrics,
+) -> dict:
+    """Extract simple statistics (mean and standard deviation) from sleep metrics.
+
+    Args:
+        sleep_metrics: An instance of SleepMetrics containing computed sleep metrics.
+
+    Returns:
+        A dictionary containing the summary statistics.
+    """
+    stats_dict = {}
+
+    duration_metrics = [
+        "sleep_duration",
+        "time_in_bed",
+        "sleep_efficiency",
+        "waso",
+        "num_awakenings",
+    ]
+    time_metrics = [
+        "sleep_onset",
+        "sleep_wakeup",
+        "sleep_midpoint",
+        "weekday_midpoint",
+        "weekend_midpoint",
+    ]
+
+    for metric_name in duration_metrics:
+        private_attr = f"_{metric_name}"
+        if getattr(sleep_metrics, private_attr, None) is not None:
+            metric_series = getattr(sleep_metrics, metric_name)
+            stats_dict[f"{metric_name}_mean"] = metric_series.mean()
+            stats_dict[f"{metric_name}_sd"] = metric_series.std()
+
+    for metric_name in time_metrics:
+        private_attr = f"_{metric_name}"
+        if getattr(sleep_metrics, private_attr, None) is not None:
+            metric_series = getattr(sleep_metrics, metric_name)
+            if not metric_series.is_empty():
+                stats_dict[f"{metric_name}_mean"] = utils.compute_circular_mean_time(
+                    metric_series
+                )
+                stats_dict[f"{metric_name}_sd"] = utils.compute_circular_sd_time(
+                    metric_series
+                )
+
+    return stats_dict
