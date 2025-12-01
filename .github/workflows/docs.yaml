@@ -32,6 +32,6 @@ jobs:
         APP_MODULE_NAME=$(ls src -U | head -1)  # Get the first module name in the src directory
         uv run pdoc src/"$APP_MODULE_NAME" -o docs_build -t docs/pdoc-theme --docformat google
         touch docs_build/.nojekyll
-    - uses: JamesIves/github-pages-deploy-action@6c2d9db40f9296374acc17b90404b6e8864128c8
+    - uses: JamesIves/github-pages-deploy-action@4a3abc783e1a24aeb44c16e869ad83caf6b4cc23
       with:
         folder: docs_build
