@@ -13,8 +13,8 @@ from noctsleepy.processing import utils
     [
         (pl.Series([datetime.time(23, 30), datetime.time(0, 30)]), datetime.time(0, 0)),
         (
-            pl.Series([datetime.time(11, 0), datetime.time(13, 0)]),
-            datetime.time(12, 0),
+            pl.Series([datetime.time(0, 0), datetime.time(12, 0)]),
+            datetime.time(6, 0),
         ),
         (
             pl.Series(
@@ -37,9 +37,35 @@ def test_compute_circular_mean_time(
     assert mean_time == expected_mean
 
 
-def test_compute_circular_sd_time() -> None:
+@pytest.mark.parametrize(
+    "input_series, expected_sd",
+    [
+        (
+            pl.Series(
+                [datetime.time(10, 0), datetime.time(10, 0), datetime.time(10, 0)]
+            ),
+            0,
+        ),
+        (
+            pl.Series(
+                [datetime.time(23, 45), datetime.time(0, 0), datetime.time(0, 15)]
+            ),
+            pytest.approx(12.0, abs=1.0),
+        ),
+        (
+            pl.Series(
+                [
+                    datetime.time(6, 0),
+                    datetime.time(12, 0),
+                    datetime.time(18, 0),
+                    datetime.time(0, 0),
+                ]
+            ),
+            float("inf"),
+        ),
+    ],
+)
+def test_compute_circular_sd_time(input_series: pl.Series, expected_sd: float) -> None:
     """Test the compute_circular_sd_time function."""
-    sd_time = utils.compute_circular_sd_time(
-        (pl.Series([datetime.time(23, 30), datetime.time(23, 30)]))
-    )
-    assert sd_time == 0.0
+    sd_time = utils.compute_circular_sd_time(input_series)
+    assert sd_time == expected_sd

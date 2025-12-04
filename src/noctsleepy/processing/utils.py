@@ -84,6 +84,9 @@ def compute_circular_sd_time(time_series: pl.Series) -> float:
 
     r = np.sqrt(sin_sum**2 + cos_sum**2) / n
 
+    if r < 1e-10:
+        return float("inf")
+
     circular_sd = np.sqrt(-2 * np.log(r)) / radian_conversion
 
     return circular_sd
