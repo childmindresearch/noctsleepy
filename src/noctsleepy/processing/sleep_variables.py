@@ -2,7 +2,7 @@
 
 import datetime
 import enum
-from typing import Iterable, Optional
+from typing import Iterable, Optional, TypedDict
 
 import polars as pl
 
@@ -651,40 +651,46 @@ def extract_simple_statistics(
     Returns:
         A dictionary containing the summary statistics.
     """
-    stats_dict = {}
+    stats_dict: dict[str, datetime.time | float | None] = {}
 
-    duration_metrics = [
-        "sleep_duration",
-        "time_in_bed",
-        "sleep_efficiency",
-        "waso",
-        "num_awakenings",
-    ]
-    time_metrics = [
-        "sleep_onset",
-        "sleep_wakeup",
-        "sleep_midpoint",
-        "weekday_midpoint",
-        "weekend_midpoint",
-    ]
+    metrics: tuple[MetricConfigForStats, ...] = (
+        {"name": "sleep_duration", "is_circular": False},
+        {"name": "time_in_bed", "is_circular": False},
+        {"name": "sleep_efficiency", "is_circular": False},
+        {"name": "waso", "is_circular": False},
+        {"name": "num_awakenings", "is_circular": False},
+        {"name": "sleep_onset", "is_circular": True},
+        {"name": "sleep_wakeup", "is_circular": True},
+        {"name": "sleep_midpoint", "is_circular": True},
+        {"name": "weekday_midpoint", "is_circular": True},
+        {"name": "weekend_midpoint", "is_circular": True},
+    )
 
-    for metric_name in duration_metrics:
-        private_attr = f"_{metric_name}"
+    for metric in metrics:
+        private_attr = f"_{metric['name']}"
         if getattr(sleep_metrics, private_attr, None) is not None:
-            metric_series = getattr(sleep_metrics, metric_name)
-            stats_dict[f"{metric_name}_mean"] = metric_series.mean()
-            stats_dict[f"{metric_name}_sd"] = metric_series.std()
-
-    for metric_name in time_metrics:
-        private_attr = f"_{metric_name}"
-        if getattr(sleep_metrics, private_attr, None) is not None:
-            metric_series = getattr(sleep_metrics, metric_name)
-            if not metric_series.is_empty():
-                stats_dict[f"{metric_name}_mean"] = utils.compute_circular_mean_time(
+            metric_series = getattr(sleep_metrics, metric["name"])
+            if metric["is_circular"]:
+                stats_dict[f"{metric['name']}_mean"] = utils.compute_circular_mean_time(
                     metric_series
                 )
-                stats_dict[f"{metric_name}_sd"] = utils.compute_circular_sd_time(
+                stats_dict[f"{metric['name']}_sd"] = utils.compute_circular_sd_time(
                     metric_series
                 )
+            else:
+                stats_dict[f"{metric['name']}_mean"] = metric_series.mean()
+                stats_dict[f"{metric['name']}_sd"] = metric_series.std()
 
     return stats_dict
+
+
+class MetricConfigForStats(TypedDict):
+    """Configuration for computing summary statistics of sleep metrics.
+
+    Attributes:
+        name: The name of the sleep metric.
+        is_circular: Boolean indicating if the metric is a circular time-based metric.
+    """
+
+    name: str
+    is_circular: bool
