@@ -2,6 +2,7 @@
 
 import datetime
 import itertools
+import json
 import pathlib
 from typing import Iterable, Literal, Optional
 
@@ -40,7 +41,8 @@ def compute_sleep_metrics(
     must have a compatible output format.
 
     Users can specify the start and end times of the night to filter the data,
-    a non-wear threshold, and the metrics they want to compute.
+    a non-wear threshold, and the metrics they want to compute. Summary statistics
+    (mean, standard deviation) are also computed for each metric across all nights.
 
     **Handling Timezones and Daylight Savings Time (DST)**
     Users must provide a location-aware timezone that conforms to the IANA timezone
@@ -100,6 +102,19 @@ def compute_sleep_metrics(
         METRIC_MAPPING[metric] for metric in selected_metrics
     )
 
-    sleep_data.save_to_json(output_file, metrics_to_compute)
+    sleep_metrics_dict = sleep_data.save_to_dict(metrics_to_compute)
+
+    summary_stats = sleep_variables.extract_simple_statistics(sleep_data)
+
+    output_file.write_text(
+        json.dumps(
+            {
+                "sleep_metrics": sleep_metrics_dict,
+                "summary_statistics": summary_stats,
+            },
+            indent=4,
+            default=str,
+        )
+    )
 
     return sleep_data

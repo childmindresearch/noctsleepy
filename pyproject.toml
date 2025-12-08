@@ -10,6 +10,7 @@ license = "LGPL-2.1-only"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "numpy>=2.3.5",
     "polars>=1.31.0",
     "typer>=0.20.0",
     "tzdata>=2025.2",
