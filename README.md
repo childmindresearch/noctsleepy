@@ -58,7 +58,7 @@ noctsleepy --help
 ### Using noctsleepy through a Python script or notebook:
 
 ```python
-from noctsleepy import main
+import noctsleepy
 import pathlib
 import datetime
 
@@ -66,13 +66,13 @@ import datetime
 input_path = pathlib.Path('/path/to/your/data.csv')
 
 # Compute all sleep metrics
-sleep_metrics = main.compute_sleep_metrics(
+sleep_metrics = noctsleepy.compute_sleep_metrics(
     input_data=input_path,
     timezone='America/New_York'
 )
 
 # Compute custom pipeline
-custom_metrics = main.compute_sleep_metrics(    
+custom_metrics = noctsleepy.compute_sleep_metrics(    
     input_data=input_path,
     timezone='America/Toronto',
     night_start=datetime.time(22, 0),
