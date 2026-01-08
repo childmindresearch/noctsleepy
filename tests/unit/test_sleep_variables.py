@@ -51,6 +51,9 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
+    assert valid_nights["day_number"].unique().len() == 2, (
+        f"Expected 2 unique day numbers, got {valid_nights['day_number'].unique().len()}"
+    )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
 
@@ -76,6 +79,9 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
 
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
+    )
+    assert valid_nights["day_number"].unique().len() == 1, (
+        f"Expected 1 unique day number, got {valid_nights['day_number'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
