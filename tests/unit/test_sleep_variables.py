@@ -52,7 +52,7 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
     assert valid_nights["day_number"].unique().len() == 2, (
-        f"Expected 2 unique day numbers, got {valid_nights['day_number'].unique().len()}"
+        f"Expected 2 unique days, got {valid_nights['day_number'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
