@@ -127,7 +127,8 @@ def test_filter_nights_sleep_from_before_data_collection() -> None:
         f"Expected {expected_night_dates} got {nights_metadata['night_date'].to_list()}"
     )
     assert nights_metadata["day_number"].to_list() == expected_night_numbers, (
-        f"Expected {expected_night_numbers} got {nights_metadata['day_number'].to_list()}"
+        f"Expected {expected_night_numbers} "
+        f"got {nights_metadata['day_number'].to_list()}"
     )
 
 

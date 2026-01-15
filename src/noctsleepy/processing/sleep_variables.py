@@ -371,7 +371,7 @@ def _filter_nights(
     The processed data is filtered to only include this window and then valid nights
     are chosen when a night has a non-wear percentage below the specified threshold.
 
-    Note: Any sleep belonging to a night prior to the start of the study will be removed.
+    Note: Any sleep belonging to a night prior to data collection will be removed.
         This edge case can occur when sleep is detected at the start
         of the data collection, usually erroneously.
 
