@@ -110,7 +110,12 @@ class SleepMetrics:
             data, night_start, night_end, nw_threshold, timezone, self.sampling_time
         )
         if self.night_data.is_empty():
-            raise ValueError("No valid nights found in the data.")
+            raise ValueError(
+                "No valid nights found in the data. Primary reasons could be due "
+                "to too restrictive night_start/night_end times or a high "
+                "non-wear threshold. Please adjust these parameters and try again "
+                "or verify that your data contains sleep within the nocturnal window."
+            )
 
         self.weekdays = weekday_list
         self.weekend = weekend_list
@@ -366,6 +371,10 @@ def _filter_nights(
     The processed data is filtered to only include this window and then valid nights
     are chosen when a night has a non-wear percentage below the specified threshold.
 
+    Note: Any sleep belonging to a night prior to the start of the study will be removed.
+        This edge case can occur when sleep is detected at the start
+        of the data collection, usually erroneously.
+
     Args:
         data: Polars dataframe containing the processed actigraphy data,
             including non-wear time.
@@ -385,6 +394,7 @@ def _filter_nights(
     data = data.with_columns(
         [(pl.col("time").dt.date().rank("dense")).alias("day_number")]
     )
+    min_date = data["time"].dt.date().min()
     utc_night_data = _convert_to_utc(data, timezone)
 
     if utc_night_data["local_time"].is_null().any():
@@ -413,7 +423,7 @@ def _filter_nights(
         nocturnal_sleep = nocturnal_sleep.with_columns(
             pl.col("local_time").dt.date().alias("night_date")
         )
-
+    nocturnal_sleep = nocturnal_sleep.filter(pl.col("night_date") >= min_date)
     night_stats = (
         nocturnal_sleep.group_by("night_date")
         .agg(
