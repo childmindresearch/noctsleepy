@@ -6,6 +6,8 @@ import json
 import pathlib
 from typing import Iterable, Literal, Optional
 
+import polars as pl
+
 from noctsleepy import timezones
 from noctsleepy.io import readers
 from noctsleepy.processing import sleep_variables
@@ -105,10 +107,15 @@ def compute_sleep_metrics(
     sleep_metrics_dict = sleep_data.save_to_dict(metrics_to_compute)
 
     summary_stats = sleep_variables.extract_simple_statistics(sleep_data)
+    nights_metadata = sleep_data.night_data.unique(
+        subset=["night_date"], maintain_order=True
+    ).select(["night_date", "day_number"])
 
     output_file.write_text(
         json.dumps(
             {
+                "night_dates": nights_metadata["night_date"].cast(pl.Utf8).to_list(),
+                "night_numbers": nights_metadata["day_number"].cast(pl.Utf8).to_list(),
                 "sleep_metrics": sleep_metrics_dict,
                 "summary_statistics": summary_stats,
             },

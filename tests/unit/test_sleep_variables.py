@@ -51,6 +51,9 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
+    assert valid_nights["day_number"].unique().len() == 2, (
+        f"Expected 2 unique days, got {valid_nights['day_number'].unique().len()}"
+    )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
 
@@ -77,7 +80,56 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
+    assert valid_nights["day_number"].unique().len() == 1, (
+        f"Expected 1 unique day number, got {valid_nights['day_number'].unique().len()}"
+    )
     assert time_check, "Not all timestamps are within the nocturnal interval"
+
+
+def test_filter_nights_sleep_from_before_data_collection() -> None:
+    """Test finding valid nights when sleep starts before data collection."""
+    dummy_date = datetime.datetime(year=2024, month=5, day=2, hour=6, minute=0)
+    dummy_datetime_list = [
+        dummy_date + datetime.timedelta(minutes=i) for i in range(5000)
+    ]
+    test_data = pl.DataFrame(
+        {
+            "time": dummy_datetime_list,
+            "sib_periods": [True] * 5000,
+            "spt_periods": [True] * 5000,
+            "nonwear_status": [False] * 5000,
+        }
+    )
+    expected_night_dates = [
+        datetime.date(2024, 5, 2),
+        datetime.date(2024, 5, 3),
+        datetime.date(2024, 5, 4),
+    ]
+    expected_night_numbers = [1, 2, 3]
+    night_start = datetime.time(hour=20, minute=0)
+    night_end = datetime.time(hour=8, minute=0)
+    nw_threshold = 0.2
+    timezone = "UTC"
+
+    valid_nights = sleep_variables._filter_nights(
+        test_data,
+        night_start,
+        night_end,
+        nw_threshold,
+        timezone,
+        sampling_time=60,
+    )
+    nights_metadata = valid_nights.unique(
+        subset=["night_date"], maintain_order=True
+    ).select(["night_date", "day_number"])
+
+    assert nights_metadata["night_date"].to_list() == expected_night_dates, (
+        f"Expected {expected_night_dates} got {nights_metadata['night_date'].to_list()}"
+    )
+    assert nights_metadata["day_number"].to_list() == expected_night_numbers, (
+        f"Expected {expected_night_numbers} "
+        f"got {nights_metadata['day_number'].to_list()}"
+    )
 
 
 def test_sleepmetrics_class(create_dummy_data: pl.DataFrame) -> None:

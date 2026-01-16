@@ -1,6 +1,6 @@
 [project]
 name = "noctsleepy"
-version = "0.1.0"
+version = "0.1.1"
 description = "This package provides a toolbox of functions to compute key metrics about nocturnal sleep from already processed wrist-worn actigraphy data."
 authors = [
   {name = "Adam Santorelli", email = "adam.santorelli@childmind.org"},
