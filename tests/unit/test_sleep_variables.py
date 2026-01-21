@@ -23,6 +23,7 @@ def create_dummy_data() -> pl.DataFrame:
             "time": dummy_datetime_list,
             "sib_periods": [True] * 1440,
             "spt_periods": [True] * 1440,
+            "sleep_status": [True] * 1440,
             "nonwear_status": [False] * 1440,
         }
     )
@@ -183,8 +184,19 @@ def test_sleep_metrics_attributes(
 
 def test_sleep_onset(create_dummy_data: pl.DataFrame) -> None:
     """Test the sleep_onset method."""
-    metrics = sleep_variables.SleepMetrics(create_dummy_data, timezone="UTC")
-    expected_onset = datetime.time(hour=20, minute=0)
+    data = create_dummy_data.with_columns(
+        [
+            pl.when(
+                (pl.col("time").dt.time() >= datetime.time(22, 0))
+                | (pl.col("time").dt.time() < datetime.time(7, 0))
+            )
+            .then(True)
+            .otherwise(False)
+            .alias("sleep_status")
+        ]
+    )
+    expected_onset = datetime.time(hour=22, minute=0)
+    metrics = sleep_variables.SleepMetrics(data, timezone="UTC")
 
     assert metrics.sleep_onset[0] == expected_onset, (
         f"Expected onset {expected_onset}, got {metrics.sleep_onset[0]}"
@@ -193,8 +205,20 @@ def test_sleep_onset(create_dummy_data: pl.DataFrame) -> None:
 
 def test_sleep_wakeup(create_dummy_data: pl.DataFrame) -> None:
     """Test the sleep_wakeup method."""
-    metrics = sleep_variables.SleepMetrics(create_dummy_data, timezone="UTC")
-    expected_wakeup = datetime.time(hour=7, minute=59)
+    data = create_dummy_data.with_columns(
+        [
+            pl.when(
+                (pl.col("time").dt.time() >= datetime.time(22, 0))
+                | (pl.col("time").dt.time() < datetime.time(7, 0))
+            )
+            .then(True)
+            .otherwise(False)
+            .alias("sleep_status")
+        ]
+    )
+    expected_wakeup = datetime.time(hour=6, minute=59)
+
+    metrics = sleep_variables.SleepMetrics(data, timezone="UTC")
 
     assert metrics.sleep_wakeup[0] == expected_wakeup, (
         f"Expected wakeup {expected_wakeup}, got {metrics.sleep_wakeup[0]}"
@@ -300,6 +324,7 @@ def test_weekend_midpoint() -> None:
             "time": dummy_datetime_list,
             "sib_periods": [True] * 1440,
             "spt_periods": [True] * 1440,
+            "sleep_status": [True] * 1440,
             "nonwear_status": [False] * 1440,
         }
     )
@@ -332,6 +357,7 @@ def test_social_jetlag() -> None:
             "time": dummy_datetime_list,
             "sib_periods": [True] * 400,
             "spt_periods": [True] * 400,
+            "sleep_status": [True] * 400,
             "nonwear_status": [False] * 400,
         }
     )
@@ -400,6 +426,10 @@ def test_dst_fall_back_sleep_variables() -> None:
                 (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
                 for t in dummy_datetime_list
             ],
+            "sleep_status": [
+                (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
+                for t in dummy_datetime_list
+            ],
             "nonwear_status": [False] * len(dummy_datetime_list),
         }
     )
@@ -448,6 +478,10 @@ def test_dst_forward_sleep_variables() -> None:
                 for t in dummy_datetime_list
             ],
             "spt_periods": [
+                (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
+                for t in dummy_datetime_list
+            ],
+            "sleep_status": [
                 (datetime.time(22, 0) <= t.time() or t.time() < datetime.time(6, 0))
                 for t in dummy_datetime_list
             ],
