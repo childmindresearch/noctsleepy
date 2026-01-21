@@ -609,7 +609,7 @@ def _get_night_midpoint(start: datetime.time, end: datetime.time) -> datetime.ti
 
 def _compute_onset(df: pl.DataFrame) -> pl.Series:
     return (
-        df.filter(pl.col("spt_periods"))
+        df.filter(pl.col("sleep_status"))
         .group_by("night_date")
         .agg(pl.col("local_time").min().alias("sleep_onset"))
         .sort("night_date")
@@ -621,7 +621,7 @@ def _compute_onset(df: pl.DataFrame) -> pl.Series:
 
 def _compute_wakeup(df: pl.DataFrame) -> pl.Series:
     return (
-        df.filter(pl.col("spt_periods"))
+        df.filter(pl.col("sleep_status"))
         .group_by("night_date")
         .agg(pl.col("local_time").max().alias("sleep_wakeup"))
         .sort("night_date")
