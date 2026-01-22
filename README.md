@@ -6,7 +6,7 @@ A Python package for computing nocturnal sleep metrics from processed actigraphy
 [![codecov](https://codecov.io/gh/childmindresearch/noctsleepy/branch/main/graph/badge.svg?token=22HWWFWPW5)](https://codecov.io/gh/childmindresearch/noctsleepy)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 ![stability-stable](https://img.shields.io/badge/stability-experimental-orange.svg)
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/childmindresearch/noctlseepy/blob/main/LICENSE)
+[![LGPL--2.1 License](https://img.shields.io/badge/license-LGPL--2.1-blue.svg)](https://github.com/childmindresearch/graphomotor/blob/main/LICENSE)
 [![pages](https://img.shields.io/badge/api-docs-blue)](https://childmindresearch.github.io/noctsleepy/noctsleepy.html)
 
 ## Overview
