@@ -102,6 +102,8 @@ class SleepMetrics:
                 Default is [1, 2, 3, 4, 5] (Monday to Friday).
             weekend_list: List of integers representing weekend days
                 Default is [6, 7] (Saturday and Sunday).
+            only_longest_sleep: If True, only the longest continuous sleep window
+                per night_date is kept.
 
         Raises:
             ValueError: If there are no valid nights in the data.

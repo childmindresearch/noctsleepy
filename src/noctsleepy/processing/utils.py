@@ -101,7 +101,10 @@ def keep_longest_sleep_window(night_data: pl.DataFrame) -> pl.DataFrame:
 
     First, we count contiguous sleep bouts by creating a group identifier
     that increments whenever the sleep_status changes from awake to sleep, as well
-    as when the night datae changes (in case a window ends with sleep and the next window also starts with sleep).
+    as when the night date changes (in case a window ends with sleep and the next
+    window also starts with sleep). We then group by night_date and find the longest
+    sleep bout. Finally, we filter the original night data to keep only the rows
+    corresponding to the longest sleep bout for each night_date.
 
     Args:
         night_data: DataFrame containing filtered night data with sleep_status column.
