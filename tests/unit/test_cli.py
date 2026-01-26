@@ -65,7 +65,7 @@ def test_main_custom_params(
             "sleep_duration",
             "--metrics",
             "sleep_timing",
-            "--only-longest-sleep",
+            "--longest-sleep",
         ],
     )
 
