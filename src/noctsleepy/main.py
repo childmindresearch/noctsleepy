@@ -35,6 +35,7 @@ def compute_sleep_metrics(
     night_end: Optional[datetime.time] = None,
     nw_threshold: float = 0.2,
     selected_metrics: Optional[Iterable[SLEEP_METRIC_CATEGORIES]] = None,
+    *,
     only_longest_sleep: bool = False,
 ) -> sleep_variables.SleepMetrics:
     """Compute sleep metrics from the provided data file.

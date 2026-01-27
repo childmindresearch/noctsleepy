@@ -85,6 +85,7 @@ class SleepMetrics:
             DayOfWeek.SUNDAY,
         ],
         nw_threshold: float = 0.2,
+        *,
         only_longest_sleep: bool = False,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
