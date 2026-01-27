@@ -120,6 +120,15 @@ def compute_metrics(
             show_choices=True,
         ),
     ] = None,
+    longest_sleep: Annotated[
+        bool,
+        typer.Option(
+            "--longest-sleep",
+            "-l",
+            help="This parameter can be used to analyze sleep metrics from "
+            "only the longest continuous sleep window per night.",
+        ),
+    ] = False,
 ) -> None:
     """Compute sleep metrics from actigraphy data.
 
@@ -136,4 +145,5 @@ def compute_metrics(
         selected_metrics=[metric.value for metric in selected_metrics]
         if selected_metrics is not None
         else None,
+        only_longest_sleep=longest_sleep,
     )

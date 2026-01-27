@@ -90,3 +90,61 @@ def compute_circular_sd_time(time_series: pl.Series) -> float:
     circular_sd = np.sqrt(-2 * np.log(r)) / radian_conversion
 
     return circular_sd
+
+
+def keep_longest_sleep_window(night_data: pl.DataFrame) -> pl.DataFrame:
+    """Keep only the longest continuous sleep window per night.
+
+    For each night_date, identifies all continuous sleep windows (where
+    sleep_status is True) and retains only the rows belonging to the
+    longest continuous sleep bout.
+
+    First, we count contiguous sleep bouts by creating a group identifier
+    that increments whenever the sleep_status changes from awake to sleep, as well
+    as when the night date changes (in case a window ends with sleep and the next
+    window also starts with sleep). We then group by night_date and find the longest
+    sleep bout. Finally, we filter the original night data to keep only the rows
+    corresponding to the longest sleep bout for each night_date.
+
+    Args:
+        night_data: DataFrame containing filtered night data with sleep_status column.
+
+    Returns:
+        DataFrame containing only the longest sleep window per night_date.
+    """
+    night_data = night_data.with_columns(
+        [
+            (
+                (
+                    pl.col("night_date").diff().dt.total_days() != 0
+                )  # due to non-wear filtering this difference can be > 1
+                | (pl.col("sleep_status").cast(pl.Int8).diff() == 1)
+            )
+            .cum_sum()
+            .alias("candidate_sleep_bout")
+        ]
+    )
+
+    bout_lengths = (
+        night_data.filter(pl.col("sleep_status"))
+        .group_by(["night_date", "candidate_sleep_bout"])
+        .agg([pl.len().alias("bout_length")])
+    )
+
+    longest_bout_per_night_date = bout_lengths.group_by("night_date").agg(
+        [
+            pl.col("candidate_sleep_bout")
+            .sort_by("bout_length")
+            .last()
+            .alias("longest_bout")
+        ]
+    )
+
+    return (
+        night_data.join(longest_bout_per_night_date, on="night_date")
+        .filter(
+            (pl.col("candidate_sleep_bout") == pl.col("longest_bout"))
+            & pl.col("sleep_status")
+        )
+        .drop(["candidate_sleep_bout", "longest_bout"])
+    )

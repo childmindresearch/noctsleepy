@@ -85,6 +85,8 @@ class SleepMetrics:
             DayOfWeek.SUNDAY,
         ],
         nw_threshold: float = 0.2,
+        *,
+        only_longest_sleep: bool = False,
     ) -> None:
         """Initialize the SleepMetrics dataclass.
 
@@ -101,6 +103,8 @@ class SleepMetrics:
                 Default is [1, 2, 3, 4, 5] (Monday to Friday).
             weekend_list: List of integers representing weekend days
                 Default is [6, 7] (Saturday and Sunday).
+            only_longest_sleep: If True, only the longest continuous sleep window
+                per night_date is kept.
 
         Raises:
             ValueError: If there are no valid nights in the data.
@@ -116,7 +120,8 @@ class SleepMetrics:
                 "non-wear threshold. Please adjust these parameters and try again "
                 "or verify that your data contains sleep within the nocturnal window."
             )
-
+        if only_longest_sleep:
+            self.night_data = utils.keep_longest_sleep_window(self.night_data)
         self.weekdays = weekday_list
         self.weekend = weekend_list
 

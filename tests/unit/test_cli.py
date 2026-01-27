@@ -38,6 +38,7 @@ def test_main_default(
         night_end=datetime.time(hour=8, minute=0),
         nw_threshold=0.2,
         selected_metrics=None,
+        only_longest_sleep=False,
     )
 
 
@@ -64,6 +65,7 @@ def test_main_custom_params(
             "sleep_duration",
             "--metrics",
             "sleep_timing",
+            "--longest-sleep",
         ],
     )
 
@@ -75,6 +77,7 @@ def test_main_custom_params(
         night_end=datetime.time(hour=7, minute=0),
         nw_threshold=0.3,
         selected_metrics=["sleep_duration", "sleep_timing"],
+        only_longest_sleep=True,
     )
 
 

@@ -35,6 +35,8 @@ def compute_sleep_metrics(
     night_end: Optional[datetime.time] = None,
     nw_threshold: float = 0.2,
     selected_metrics: Optional[Iterable[SLEEP_METRIC_CATEGORIES]] = None,
+    *,
+    only_longest_sleep: bool = False,
 ) -> sleep_variables.SleepMetrics:
     """Compute sleep metrics from the provided data file.
 
@@ -71,6 +73,8 @@ def compute_sleep_metrics(
             If None, defaults to 0.2.
         selected_metrics: Specific metrics to compute.
              If None, all metrics are computed.
+        only_longest_sleep: If True, only the longest continuous sleep window
+            per night_date is kep. Default is False.
 
     Returns:
         An instance of SleepMetrics containing the computed metrics.
@@ -95,6 +99,7 @@ def compute_sleep_metrics(
         night_end=night_end,
         nw_threshold=nw_threshold,
         timezone=timezone,
+        only_longest_sleep=only_longest_sleep,
     )
 
     if selected_metrics is None:
