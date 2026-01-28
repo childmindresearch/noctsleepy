@@ -368,8 +368,6 @@ def _filter_nights(
     """Find valid nights in the processed actigraphy data.
 
     A night is defined by the nocturnal interval (default is [20:00 - 08:00) ).
-    A day_number is first added to keep track of the number of days in the study,
-    this is used to provide the "night_number" to the user as part of the output.
     Timestamps are first converted to UTC based on the provided timezone.
     The UTC conversion also keeps track of the offset from the initial local timezone.
     This offset is used to shift the nocturnal window hours.
@@ -396,9 +394,6 @@ def _filter_nights(
         A Polars DataFrame containing only the valid nights.
 
     """
-    data = data.with_columns(
-        [(pl.col("time").dt.date().rank("dense")).alias("day_number")]
-    )
     min_date = data["time"].dt.date().min()
     utc_night_data = _convert_to_utc(data, timezone)
 
