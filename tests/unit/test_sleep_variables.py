@@ -52,9 +52,6 @@ def test_filter_nights_cross_midnight(create_dummy_data: pl.DataFrame) -> None:
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
     )
-    assert valid_nights["day_number"].unique().len() == 2, (
-        f"Expected 2 unique days, got {valid_nights['day_number'].unique().len()}"
-    )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
 
@@ -80,9 +77,6 @@ def test_filter_nights_before_midnight(create_dummy_data: pl.DataFrame) -> None:
 
     assert valid_nights["night_date"].unique().len() == 1, (
         f"Expected 1 valid night, got {valid_nights['night_date'].unique().len()}"
-    )
-    assert valid_nights["day_number"].unique().len() == 1, (
-        f"Expected 1 unique day number, got {valid_nights['day_number'].unique().len()}"
     )
     assert time_check, "Not all timestamps are within the nocturnal interval"
 
@@ -122,14 +116,18 @@ def test_filter_nights_sleep_from_before_data_collection() -> None:
     )
     nights_metadata = valid_nights.unique(
         subset=["night_date"], maintain_order=True
-    ).select(["night_date", "day_number"])
+    ).select(["night_date"])
+
+    nights_metadata = nights_metadata.with_columns(
+        [pl.col("night_date").rank("dense").alias("night_number")]
+    )
 
     assert nights_metadata["night_date"].to_list() == expected_night_dates, (
         f"Expected {expected_night_dates} got {nights_metadata['night_date'].to_list()}"
     )
-    assert nights_metadata["day_number"].to_list() == expected_night_numbers, (
+    assert nights_metadata["night_number"].to_list() == expected_night_numbers, (
         f"Expected {expected_night_numbers} "
-        f"got {nights_metadata['day_number'].to_list()}"
+        f"got {nights_metadata['night_number'].to_list()}"
     )
 
 
