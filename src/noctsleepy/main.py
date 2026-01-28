@@ -114,10 +114,14 @@ def compute_sleep_metrics(
     summary_stats = sleep_variables.extract_simple_statistics(sleep_data)
     nights_metadata = sleep_data.night_data.unique(
         subset=["night_date"], maintain_order=True
-    ).select(["night_date"])
+    ).select(["night_date", "data_start_date"])
 
     nights_metadata = nights_metadata.with_columns(
-        [pl.col("night_date").rank("dense").alias("night_number")]
+        [
+            (
+                (pl.col("night_date") - pl.col("data_start_date")).dt.total_days() + 1
+            ).alias("night_number")
+        ]
     )
 
     output_file.write_text(

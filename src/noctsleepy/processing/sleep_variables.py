@@ -445,7 +445,11 @@ def _filter_nights(
         pl.col("non_wear_percentage") <= nw_threshold
     ).select(["night_date"])
 
-    return nocturnal_sleep.join(valid_nights, on="night_date").sort("local_time")
+    filtered_nights = nocturnal_sleep.join(valid_nights, on="night_date").sort(
+        "local_time"
+    )
+
+    return filtered_nights.with_columns([pl.lit(min_date).alias("data_start_date")])
 
 
 def _convert_to_utc(data: pl.DataFrame, timezone: str) -> pl.DataFrame:
