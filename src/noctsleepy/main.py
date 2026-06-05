@@ -74,7 +74,7 @@ def compute_sleep_metrics(
         selected_metrics: Specific metrics to compute.
              If None, all metrics are computed.
         only_longest_sleep: If True, only the longest continuous sleep window
-            per night_date is kep. Default is False.
+            per night_date is kept. Default is False.
 
     Returns:
         An instance of SleepMetrics containing the computed metrics.

@@ -373,6 +373,8 @@ def _filter_nights(
     This offset is used to shift the nocturnal window hours.
     The processed data is filtered to only include this window and then valid nights
     are chosen when a night has a non-wear percentage below the specified threshold.
+    A column with the initial data start date is also added to the output as this is
+    used to compute the night_number as part of the final output.
 
     Note: If measurements start during a sleep window, that sleep window will be
         ignored. This edge case can occur when sleep is detected at the start of
