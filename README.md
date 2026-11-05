@@ -1,4 +1,4 @@
-# `noctsleepy`  
+# `noctsleepy`
 
 A Python package for computing nocturnal sleep metrics from processed actigraphy data.
 
@@ -72,7 +72,7 @@ sleep_metrics = noctsleepy.compute_sleep_metrics(
 )
 
 # Compute custom pipeline
-custom_metrics = noctsleepy.compute_sleep_metrics(    
+custom_metrics = noctsleepy.compute_sleep_metrics(
     input_data=input_path,
     timezone='America/Toronto',
     night_start=datetime.time(22, 0),
@@ -155,7 +155,7 @@ noctsleepy compute-metrics --help
 
 ## Output Format
 
-Results are automatically saved as a JSON file in the same directory as the input file, containing both per night statistics and summary statistics. 
+Results are automatically saved as a JSON file in the same directory as the input file, containing both per night statistics and summary statistics.
 
 
 ## Support
