@@ -1,6 +1,6 @@
 [project]
 name = "noctsleepy"
-version = "0.1.4"
+version = "0.1.5"
 description = "This package provides a toolbox of functions to compute key metrics about nocturnal sleep from already processed wrist-worn actigraphy data."
 authors = [
   {name = "Adam Santorelli", email = "adam.santorelli@childmind.org"},
@@ -8,23 +8,23 @@ authors = [
 ]
 license = "LGPL-2.1-only"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11, < 3.15"
 dependencies = [
     "numpy>=2.3.5",
-    "polars>=1.31.0",
-    "typer>=0.20.0",
-    "tzdata>=2025.2",
+    "polars>=2.1.0",
+    "typer>=0.27.1",
+    "tzdata>=2026.6",
 ]
 [project.scripts]
 noctsleepy = "noctsleepy.__main__:run_main"
 
 [dependency-groups]
 dev = [
-  "pytest>=8.3.4",
-  "mypy>=1.13.0",
-  "pre-commit>=4.0.1",
-  "pytest-cov>=6.0.0",
-  "ruff>=0.8.1",
+  "pytest>=9.2.0",
+  "mypy>=2.4.1",
+  "pre-commit>=4.7.0",
+  "pytest-cov>=7.1.0",
+  "ruff>=0.17.3",
   "deptry>=0.23.0",
   "pytest-mock>=3.15.1",
 ]

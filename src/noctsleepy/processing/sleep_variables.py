@@ -263,7 +263,7 @@ class SleepMetrics:
         """
         if self._waso_30 is None:
             num_nights = self.night_data["night_date"].n_unique()
-            self._waso_30 = ((self.waso > 30).sum() / num_nights) * 30
+            self._waso_30 = float(((self.waso > 30).sum() / num_nights) * 30)
 
         return self._waso_30
 
