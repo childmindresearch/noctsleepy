@@ -131,22 +131,21 @@ noctsleepy    </h1>
 <span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
 
 <span class="c1"># Define input file path</span>
-<span class="n">input_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="s1">&#39;/path/to/your/data.csv&#39;</span><span class="p">)</span>
+<span class="n">input_path</span> <span class="o">=</span> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;/path/to/your/data.csv&quot;</span><span class="p">)</span>
 
 <span class="c1"># Compute all sleep metrics</span>
 <span class="n">sleep_metrics</span> <span class="o">=</span> <span class="n"><a href="#compute_sleep_metrics">noctsleepy.compute_sleep_metrics</a></span><span class="p">(</span>
-    <span class="n">input_data</span><span class="o">=</span><span class="n">input_path</span><span class="p">,</span>
-    <span class="n">timezone</span><span class="o">=</span><span class="s1">&#39;America/New_York&#39;</span>
+    <span class="n">input_data</span><span class="o">=</span><span class="n">input_path</span><span class="p">,</span> <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;America/New_York&quot;</span>
 <span class="p">)</span>
 
 <span class="c1"># Compute custom pipeline</span>
-<span class="n">custom_metrics</span> <span class="o">=</span> <span class="n"><a href="#compute_sleep_metrics">noctsleepy.compute_sleep_metrics</a></span><span class="p">(</span>    
+<span class="n">custom_metrics</span> <span class="o">=</span> <span class="n"><a href="#compute_sleep_metrics">noctsleepy.compute_sleep_metrics</a></span><span class="p">(</span>
     <span class="n">input_data</span><span class="o">=</span><span class="n">input_path</span><span class="p">,</span>
-    <span class="n">timezone</span><span class="o">=</span><span class="s1">&#39;America/Toronto&#39;</span><span class="p">,</span>
+    <span class="n">timezone</span><span class="o">=</span><span class="s2">&quot;America/Toronto&quot;</span><span class="p">,</span>
     <span class="n">night_start</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="mi">22</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
     <span class="n">night_end</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">time</span><span class="p">(</span><span class="mi">6</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span>
     <span class="n">nw_threshold</span><span class="o">=</span><span class="mf">0.15</span><span class="p">,</span>
-    <span class="n">selected_metrics</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;sleep_continuity&#39;</span><span class="p">,</span> <span class="s1">&#39;sleep_timing&#39;</span><span class="p">]</span>
+    <span class="n">selected_metrics</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;sleep_continuity&quot;</span><span class="p">,</span> <span class="s2">&quot;sleep_timing&quot;</span><span class="p">],</span>
 <span class="p">)</span>
 
 <span class="c1"># Access computed metrics</span>
