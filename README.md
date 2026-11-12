@@ -63,22 +63,21 @@ import pathlib
 import datetime
 
 # Define input file path
-input_path = pathlib.Path('/path/to/your/data.csv')
+input_path = pathlib.Path("/path/to/your/data.csv")
 
 # Compute all sleep metrics
 sleep_metrics = noctsleepy.compute_sleep_metrics(
-    input_data=input_path,
-    timezone='America/New_York'
+    input_data=input_path, timezone="America/New_York"
 )
 
 # Compute custom pipeline
-custom_metrics = noctsleepy.compute_sleep_metrics(    
+custom_metrics = noctsleepy.compute_sleep_metrics(
     input_data=input_path,
-    timezone='America/Toronto',
+    timezone="America/Toronto",
     night_start=datetime.time(22, 0),
     night_end=datetime.time(6, 0),
     nw_threshold=0.15,
-    selected_metrics=['sleep_continuity', 'sleep_timing']
+    selected_metrics=["sleep_continuity", "sleep_timing"],
 )
 
 # Access computed metrics
